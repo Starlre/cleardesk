@@ -1,0 +1,17 @@
+# 单一圆角轮廓
+
+用户反馈大圆角外还有一层小圆角。此前窗口同时使用 WPF WindowChrome、DWM 系统圆角和自定义 HWND 区域；窗口装饰也会管理区域，导致可见玻璃与面板圆弧不一致。
+
+现在移除 WindowChrome，自定义轮廓启用时设置 `DWMWCP_DONOTROUND`，并通过 `DWMWA_COLOR_NONE` 关闭系统边框。面板只保留自身的渐变边缘，背景材质和实际窗口由同一原生区域裁切。启动器为 32 DIP，Dock 为 40 DIP；显示、内容呈现、尺寸及 DPI 变化时维护该区域。
+
+本机 Windows 11 构建 22631，150% 缩放，Release 编译为 0 错误、0 警告。34 项自动检查通过。圆角探针改为半径四分之一处，能识别早期 2 像素探针漏掉的小圆角；在窗口隐藏再显示、激活、浅色切换和实色降级后读取实际区域。
+
+已人工查看以下截图，四角只保留一条圆弧，外侧没有多出的玻璃填充；深浅主题背景仍呈模糊色彩变化。
+
+- [深色面板](single-contour-dark.png)
+- [浅色面板](single-contour-light.png)
+- [四角放大 4 倍](single-contour-corners.png)
+- [Dock](single-contour-dock.png)
+- [自动检查报告](single-contour-report.json)
+
+本次未改动图标拖动逻辑，未重复鼠标注入检查。跨显示器 DPI 切换和窗口外阴影仍需独立验收；截图裁切范围为 HWND 边界，不包含外侧阴影。

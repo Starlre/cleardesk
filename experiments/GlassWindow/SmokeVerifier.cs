@@ -36,6 +36,30 @@ internal static class SmokeVerifier
         var checks = new List<string>();
         void Check(bool result, string name)
         { if (!result) throw new InvalidOperationException("Smoke check failed: " + name); checks.Add(name); }
+        void CheckContour(SurfaceWindow window, string stage)
+        {
+            nint handle = new WindowInteropHelper(window).Handle;
+            nint region = Native.CreateRectRgn(0, 0, 0, 0);
+            try
+            {
+                Check(region != 0 && Native.GetWindowRgn(handle, region) > 0
+                    && Native.GetWindowRect(handle, out _), $"{window.Title}: native contour available {stage}");
+                Native.GetWindowRect(handle, out var bounds);
+                int width = bounds.Right - bounds.Left, height = bounds.Bottom - bounds.Top;
+                int radius = (int)Math.Round(window.SurfaceRadius * Native.GetDpiForWindow(handle) / 96.0);
+                // A system 8 DIP corner passes a (2,2) check. These probes distinguish
+                // the intended larger arc and catch a replaced region after hide/show.
+                int cutout = radius / 4, inside = radius / 2;
+                Check(!Native.PtInRegion(region, cutout, cutout)
+                    && !Native.PtInRegion(region, width - 1 - cutout, cutout)
+                    && !Native.PtInRegion(region, cutout, height - 1 - cutout)
+                    && !Native.PtInRegion(region, width - 1 - cutout, height - 1 - cutout)
+                    && Native.PtInRegion(region, inside, inside)
+                    && Native.PtInRegion(region, width / 2, height / 2),
+                    $"{window.Title}: four cutouts match {window.SurfaceRadius} DIP arc {stage}");
+            }
+            finally { if (region != 0) Native.DeleteObject(region); }
+        }
 
         Check(model.Entries.Count >= 3, "Real Shell entries loaded");
         Check(ReferenceEquals(((System.Windows.Input.KeyBinding)launcher.InputBindings[0]).Command, model.EscapeCommand), "Escape binding uses live cancel/hide command");
@@ -43,19 +67,7 @@ internal static class SmokeVerifier
         Check(launcher.Report is { Layered: false, BackdropResult: 0, FrameResult: 0 }, "Launcher non-layered HWND accepts Acrylic and frame extension");
         Check(dock.Report is { Layered: false, NoActivate: true, BackdropResult: 0 }, "Dock uses non-layered no-activate HWND and accepts Acrylic");
         Check(launcher.Report is { RegionApplied: true, CornerRadius: 32 }, "Launcher starts with a matching 32 DIP four-corner contour");
-        nint launcherHandle = new WindowInteropHelper(launcher).Handle;
-        nint launcherRegion = Native.CreateRectRgn(0, 0, 0, 0);
-        try
-        {
-            Check(launcherRegion != 0 && Native.GetWindowRgn(launcherHandle, launcherRegion) > 0
-                && Native.GetWindowRect(launcherHandle, out _), "Launcher exposes its native rounded region");
-            Native.GetWindowRect(launcherHandle, out var bounds);
-            int width = bounds.Right - bounds.Left, height = bounds.Bottom - bounds.Top;
-            Check(!Native.PtInRegion(launcherRegion, 2, 2) && !Native.PtInRegion(launcherRegion, width - 3, 2)
-                && !Native.PtInRegion(launcherRegion, 2, height - 3) && !Native.PtInRegion(launcherRegion, width - 3, height - 3)
-                && Native.PtInRegion(launcherRegion, width / 2, height / 2), "All four corner cutouts are outside the actual window region");
-        }
-        finally { if (launcherRegion != 0) Native.DeleteObject(launcherRegion); }
+        CheckContour(launcher, "at startup");
         nint dockHandle = new WindowInteropHelper(dock).Handle;
         Check(Native.SendMessage(dockHandle, 0x21, 0, (nint)0x02010001) == 3, "Dock WM_MOUSEACTIVATE returns MA_NOACTIVATE");
         nint foreground = Native.GetForegroundWindow();
@@ -108,12 +120,16 @@ internal static class SmokeVerifier
         model.Status = $"{model.Entries.Count} 个入口";
         launcher.Activate();
         await Task.Delay(450);
+        CheckContour(launcher, "after hide/show and activation");
+        CheckContour(dock, "after hide/show");
         Capture(launcher, Path.Combine(output, "launcher-dark.png"));
         Capture(dock, Path.Combine(output, "dock-system-corners.png"));
         var originalReports = new[] { launcher.Report, dock.Report };
         App.ApplyTheme(true);
         launcher.ApplyMaterial(BackdropMode.Acrylic); dock.ApplyMaterial(BackdropMode.Acrylic);
         await Task.Delay(300);
+        CheckContour(launcher, "after light theme change");
+        CheckContour(dock, "after light theme change");
         Capture(launcher, Path.Combine(output, "launcher-light.png"));
         launcher.UseCustomContour = dock.UseCustomContour = true;
         launcher.UpdateContour(); dock.UpdateContour();
@@ -123,6 +139,7 @@ internal static class SmokeVerifier
         App.ApplyTheme(false, true);
         launcher.ApplyMaterial(BackdropMode.Solid); dock.ApplyMaterial(BackdropMode.Solid);
         await Task.Delay(250);
+        CheckContour(launcher, "in solid fallback");
         Capture(launcher, Path.Combine(output, "launcher-solid.png"));
         await File.WriteAllTextAsync(Path.Combine(output, "smoke-report.json"), JsonSerializer.Serialize(new
         {

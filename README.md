@@ -29,7 +29,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 
 验证会短暂显示自有窗口并自动退出。实际运行记录见 [首轮验证结果](docs/evidence/2026-10-11-glass-window.md)。
 
-面板现已默认使用更通透的半透明玻璃着色和 32 DIP 四角圆角，见 [最新外观验证](docs/evidence/2026-10-11-rounded-glass.md)。
+面板默认使用半透明玻璃着色和 32 DIP 四角圆角；已去除外层系统小圆角，见 [最新外观验证](docs/evidence/2026-10-11-single-contour.md)。
 
 ## 文档入口
 

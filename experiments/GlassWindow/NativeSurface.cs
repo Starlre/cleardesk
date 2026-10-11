@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Shell;
 
 namespace GlassDesk.GlassWindow;
 
@@ -30,12 +29,8 @@ public class SurfaceWindow : Window
 
     public SurfaceWindow()
     {
-        WindowChrome.SetWindowChrome(this, new WindowChrome
-        {
-            CaptionHeight = 0, ResizeBorderThickness = new Thickness(0),
-            GlassFrameThickness = new Thickness(-1), UseAeroCaptionButtons = false,
-            CornerRadius = new CornerRadius(32)
-        });
+        // WindowChrome also manages HWND regions and can replace our contour on show.
+        // These fixed-size, borderless windows use one region owner instead.
         SourceInitialized += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(this).Handle;
@@ -47,6 +42,8 @@ public class SurfaceWindow : Window
             ApplyMaterial(Material);
         };
         SizeChanged += (_, _) => UpdateContour();
+        ContentRendered += (_, _) => UpdateContour();
+        IsVisibleChanged += (_, _) => { if (IsVisible) UpdateContour(); };
         Closed += (_, _) => _source?.RemoveHook(WindowProc);
     }
 
@@ -64,8 +61,10 @@ public class SurfaceWindow : Window
         var frame = Native.DwmExtendFrameIntoClientArea(hwnd, ref margins);
         int dark = App.IsLightTheme ? 0 : 1;
         Native.DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));
-        int corner = 2;
+        int corner = UseCustomContour ? 1 : 2; // DWMWCP_DONOTROUND / DWMWCP_ROUND
         var round = Native.DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
+        int borderColor = unchecked((int)0xFFFFFFFE); // DWMWA_COLOR_NONE: WPF draws the only edge.
+        Native.DwmSetWindowAttribute(hwnd, 34, ref borderColor, sizeof(int));
         int backdrop = (int)mode;
         var material = Native.DwmSetWindowAttribute(hwnd, 38, ref backdrop, sizeof(int));
         bool transparent = ReadTransparencySetting();
@@ -92,6 +91,8 @@ public class SurfaceWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == 0 || Report is null) return;
+        int corner = UseCustomContour ? 1 : 2;
+        int round = Native.DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
         bool applied = false;
         if (UseCustomContour && Native.GetWindowRect(hwnd, out var bounds))
         {
@@ -107,7 +108,7 @@ public class SurfaceWindow : Window
             }
         }
         else Native.SetWindowRgn(hwnd, 0, true);
-        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd) };
+        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round };
     }
 
     private nint WindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
