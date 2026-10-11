@@ -7,6 +7,7 @@ if (-not (Test-Path -LiteralPath $script:GlassDeskDotnet)) {
     $script:GlassDeskDotnet = $taskInstalledDotnet.Source
 }
 $env:DOTNET_CLI_HOME = Join-Path $script:GlassDeskRoot '.tools/cli-home'
+$env:NUGET_PACKAGES = Join-Path $script:GlassDeskRoot '.tools/nuget-packages'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'

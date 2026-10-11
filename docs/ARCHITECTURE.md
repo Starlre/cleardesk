@@ -39,6 +39,8 @@ flowchart TD
 - Mica 主要依据壁纸形成材质，不能直接作为任意下层窗口内容的实时模糊方案。
 - 系统材质不可用时，使用产品允许的降级外观。
 
+本机后续验证发现系统 Acrylic 背景仍会画满矩形，不遵守自定义 HWND 大圆角区域。当前实验关闭矩形系统背景，使用独立无激活合成窗口承载 Gaussian blur，并通过圆角几何裁切效果；WPF 前景保持清晰，两层同步位置、显隐和窗口顺序。对应像素检查与鼠标输入结果见 [合成背景验证](evidence/2026-10-11-clipped-backdrop.md)。这仍属于实验实现，多屏和阴影需继续验收。
+
 若 WPF 验证不能达到核心要求，评估 WinUI 3 的 `DesktopAcrylicBackdrop`，保留 Core 和 Infrastructure。框架切换依据记录到 ADR。
 
 ## 启动入口

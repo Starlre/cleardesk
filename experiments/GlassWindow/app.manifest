@@ -13,4 +13,8 @@
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
     </windowsSettings>
   </application>
+  <file name="Microsoft.Graphics.Canvas.dll">
+    <activatableClass xmlns="urn:schemas-microsoft-com:winrt.v1"
+                      name="Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect" threadingModel="both" />
+  </file>
 </assembly>

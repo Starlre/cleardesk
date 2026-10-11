@@ -24,7 +24,7 @@ internal static class SmokeVerifier
             Title = "Glass Desk · Controlled backdrop", Width = launcher.Width + 80,
             Height = Math.Min(work.Height - 8, launcher.Height + 144),
             Left = launcher.Left - 40, Top = Math.Max(work.Top, launcher.Top - 16),
-            ShowActivated = false, ShowInTaskbar = false, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
+            ShowActivated = false, ShowInTaskbar = false, Topmost = true, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
             Background = new DrawingBrush(shapes) { Stretch = Stretch.Fill }
         };
     }
@@ -64,18 +64,28 @@ internal static class SmokeVerifier
         Check(model.Entries.Count >= 3, "Real Shell entries loaded");
         Check(ReferenceEquals(((System.Windows.Input.KeyBinding)launcher.InputBindings[0]).Command, model.EscapeCommand), "Escape binding uses live cancel/hide command");
         Check(model.Entries.All(entry => entry.Icon is Freezable { IsFrozen: true }), "Shell icons frozen for STA-to-UI transfer");
-        Check(launcher.Report is { Layered: false, BackdropResult: 0, FrameResult: 0 }, "Launcher non-layered HWND accepts Acrylic and frame extension");
-        Check(dock.Report is { Layered: false, NoActivate: true, BackdropResult: 0 }, "Dock uses non-layered no-activate HWND and accepts Acrylic");
+        Check(launcher.Report is { Layered: false, BackdropResult: 0, FallbackReason: null, BackdropHandle: not 0 }, "Launcher uses non-layered UI over clipped Composition blur");
+        Check(dock.Report is { Layered: false, NoActivate: true, BackdropResult: 0, FallbackReason: null, BackdropHandle: not 0 }, "Dock uses no-activate UI over clipped Composition blur");
         Check(launcher.Report is { RegionApplied: true, CornerRadius: 32 }, "Launcher starts with a matching 32 DIP four-corner contour");
         CheckContour(launcher, "at startup");
         nint dockHandle = new WindowInteropHelper(dock).Handle;
         Check(Native.SendMessage(dockHandle, 0x21, 0, (nint)0x02010001) == 3, "Dock WM_MOUSEACTIVATE returns MA_NOACTIVATE");
         nint foreground = Native.GetForegroundWindow();
-        dock.Hide(); dock.Show();
+        dock.Hide();
+        Check(!Native.IsWindowVisible((nint)dock.Report!.BackdropHandle), "Hiding Dock also hides its backing visual window");
+        dock.Show();
         Check(Native.GetForegroundWindow() == foreground, "Showing Dock preserves foreground window");
         model.EscapeCommand.Execute(null);
         Check(!launcher.IsVisible && dock.IsVisible, "Escape hides only launcher and preserves Dock");
+        Check(!Native.IsWindowVisible((nint)launcher.Report!.BackdropHandle), "Hiding launcher also hides its backing visual window");
         launcher.Show();
+        double previousLeft = launcher.Left, previousTop = launcher.Top;
+        launcher.Left += 8; launcher.Top += 8;
+        await Task.Delay(150);
+        Native.GetWindowRect(new WindowInteropHelper(launcher).Handle, out var movedUi);
+        Native.GetWindowRect((nint)launcher.Report!.BackdropHandle, out var movedBackdrop);
+        Check(movedUi.Equals(movedBackdrop), "Moving launcher keeps Composition backdrop aligned to all four bounds");
+        launcher.Left = previousLeft; launcher.Top = previousTop;
 
         var original = model.SnapshotOrder();
         model.SearchText = original[0].Name;
@@ -120,16 +130,33 @@ internal static class SmokeVerifier
         model.Status = $"{model.Entries.Count} 个入口";
         launcher.Activate();
         await Task.Delay(450);
+        Check(Native.GetWindow(new WindowInteropHelper(launcher).Handle, 2) == (nint)launcher.Report!.BackdropHandle,
+            "After activation the backdrop is directly behind launcher UI");
         CheckContour(launcher, "after hide/show and activation");
         CheckContour(dock, "after hide/show");
+        await VerifyTransparentCornersAsync(launcher, output, "dark", checks);
+        await VerifyTransparentCornersAsync(dock, output, "dark", checks);
+        int rectangularBackdrop = 3;
+        Native.DwmSetWindowAttribute(new WindowInteropHelper(launcher).Handle, 38, ref rectangularBackdrop, sizeof(int));
+        await Task.Delay(180);
+        bool regressionDetected = false;
+        try { await VerifyTransparentCornersAsync(launcher, output, "rectangular-regression", checks); }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("glass still leaks")) { regressionDetected = true; }
+        finally { launcher.ApplyMaterial(BackdropMode.Glass); }
+        Check(regressionDetected, "Pixel check detects deliberately restored rectangular system backdrop");
+        launcher.Activate();
+        await Task.Delay(150);
         Capture(launcher, Path.Combine(output, "launcher-dark.png"));
+        Capture(launcher, Path.Combine(output, "launcher-dark-context.png"), 24);
         Capture(dock, Path.Combine(output, "dock-system-corners.png"));
         var originalReports = new[] { launcher.Report, dock.Report };
         App.ApplyTheme(true);
-        launcher.ApplyMaterial(BackdropMode.Acrylic); dock.ApplyMaterial(BackdropMode.Acrylic);
+        launcher.ApplyMaterial(BackdropMode.Glass); dock.ApplyMaterial(BackdropMode.Glass);
         await Task.Delay(300);
         CheckContour(launcher, "after light theme change");
         CheckContour(dock, "after light theme change");
+        await VerifyTransparentCornersAsync(launcher, output, "light", checks);
+        await VerifyTransparentCornersAsync(dock, output, "light", checks);
         Capture(launcher, Path.Combine(output, "launcher-light.png"));
         launcher.UseCustomContour = dock.UseCustomContour = true;
         launcher.UpdateContour(); dock.UpdateContour();
@@ -140,6 +167,7 @@ internal static class SmokeVerifier
         launcher.ApplyMaterial(BackdropMode.Solid); dock.ApplyMaterial(BackdropMode.Solid);
         await Task.Delay(250);
         CheckContour(launcher, "in solid fallback");
+        await VerifyTransparentCornersAsync(launcher, output, "solid", checks);
         Capture(launcher, Path.Combine(output, "launcher-solid.png"));
         await File.WriteAllTextAsync(Path.Combine(output, "smoke-report.json"), JsonSerializer.Serialize(new
         {
@@ -172,12 +200,17 @@ internal static class SmokeVerifier
         }
         try
         {
-            launcher.Activate(); await Task.Delay(250);
+            launcher.Activate();
+            Native.SetWindowPos(new WindowInteropHelper(launcher).Handle, (nint)(-1), 0, 0, 0, 0, 0x13);
+            await Task.Delay(350);
             Point start = launcher.TileCenterOnScreen(0), target = launcher.TileCenterOnScreen(2);
             Native.SetCursorPos((int)start.X, (int)start.Y); await Task.Delay(80);
             Button(0x2); await Task.Delay(80); await Move(start, target); Button(0x4); await Task.Delay(250);
             if (model.Entries[2] != original[0] || launchAttempts != 0)
+            {
+                Capture(launcher, Path.Combine(Environment.CurrentDirectory, "artifacts", "pointer-failure.png"), 24);
                 throw new InvalidOperationException("Real pointer drag did not reorder correctly or attempted to launch a target.");
+            }
             checks.Add("Injected pointer drag reorders real UI without launching target");
             model.RestoreOrder(original); launcher.UpdateLayout(); await Task.Delay(250);
             start = launcher.TileCenterOnScreen(0); target = launcher.TileCenterOnScreen(3);
@@ -197,22 +230,56 @@ internal static class SmokeVerifier
         }
     }
 
-    private static void Capture(Window window, string destination)
+    private static async Task VerifyTransparentCornersAsync(SurfaceWindow window, string output, string theme, List<string> checks)
+    {
+        string name = ReferenceEquals(window, Application.Current.MainWindow) ? "launcher" : "dock";
+        var visible = Capture(window, Path.Combine(output, $"{name}-{theme}-visible.png"));
+        window.Hide();
+        await Task.Delay(180);
+        var hidden = Capture(window, Path.Combine(output, $"{name}-{theme}-background.png"));
+        window.Show();
+        await Task.Delay(180);
+        int stride = visible.PixelWidth * 4;
+        var front = new byte[stride * visible.PixelHeight];
+        var back = new byte[front.Length];
+        new FormatConvertedBitmap(visible, PixelFormats.Bgra32, null, 0).CopyPixels(front, stride, 0);
+        new FormatConvertedBitmap(hidden, PixelFormats.Bgra32, null, 0).CopyPixels(back, stride, 0);
+        int radius = (int)Math.Round(window.SurfaceRadius * Native.GetDpiForWindow(new WindowInteropHelper(window).Handle) / 96.0);
+        int maxDifference = 0, sampleCount = 0;
+        for (int corner = 0; corner < 4; corner++)
+        for (int y = Math.Max(2, radius / 8); y <= radius / 4; y += 2)
+        for (int x = Math.Max(2, radius / 8); x <= radius / 4; x += 2)
+        {
+            int px = (corner & 1) == 0 ? x : visible.PixelWidth - 1 - x;
+            int py = (corner & 2) == 0 ? y : visible.PixelHeight - 1 - y;
+            int index = py * stride + px * 4;
+            for (int channel = 0; channel < 3; channel++)
+                maxDifference = Math.Max(maxDifference, Math.Abs(front[index + channel] - back[index + channel]));
+            sampleCount++;
+        }
+        if (maxDifference > 2)
+            throw new InvalidOperationException($"{window.Title} {theme}: rounded cutout changes background pixels by {maxDifference}; glass still leaks outside its arc.");
+        checks.Add($"{window.Title} {theme}: {sampleCount} corner pixels match hidden background (max RGB delta {maxDifference})");
+    }
+
+    private static BitmapSource Capture(Window window, string destination, int padding = 0)
     {
         nint hwnd = new WindowInteropHelper(window).Handle;
         if (!Native.GetWindowRect(hwnd, out var rect)) throw new InvalidOperationException("Window bounds unavailable.");
-        int width = rect.Right - rect.Left, height = rect.Bottom - rect.Top;
+        int width = rect.Right - rect.Left + padding * 2, height = rect.Bottom - rect.Top + padding * 2;
         nint source = Native.GetDC(0), target = 0, bitmap = 0, previous = 0;
         try
         {
             target = Native.CreateCompatibleDC(source); bitmap = Native.CreateCompatibleBitmap(source, width, height);
             if (target == 0 || bitmap == 0) throw new InvalidOperationException("Screenshot buffer unavailable.");
             previous = Native.SelectObject(target, bitmap);
-            if (!Native.BitBlt(target, 0, 0, width, height, source, rect.Left, rect.Top, 0x40CC0020))
+            if (!Native.BitBlt(target, 0, 0, width, height, source, rect.Left - padding, rect.Top - padding, 0x40CC0020))
                 throw new InvalidOperationException("Window screenshot capture failed.");
             var image = Imaging.CreateBitmapSourceFromHBitmap(bitmap, 0, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using var file = File.Create(destination); encoder.Save(file);
+            image.Freeze();
+            return image;
         }
         finally
         {

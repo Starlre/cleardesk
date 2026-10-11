@@ -1,6 +1,6 @@
 # 玻璃窗口验证版
 
-这是独立的 WPF 技术实验，不是最终应用。使用 .NET 10、文档化 DWM 背景材质和非 layered HWND；当前未依赖第三方 NuGet 包。
+这是独立的 WPF 技术实验，不是最终应用。使用 .NET 10、非 layered WPF 窗口与独立 Windows Composition 玻璃背景层。当前构建目标为 Windows 11 22H2+、x64；背景效果依赖微软 Win2D.uwp 1.28.2 和 Microsoft.VCRTForwarders.140 1.1.0。
 
 ## 运行
 
@@ -20,7 +20,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 - 点击入口通过 Shell 打开原始文件，保留快捷方式自带的启动语义。
 - 同页拖动排序，邻近图标以 180 ms 位移动画让位；Escape 取消拖动。图标右键菜单提供前后移动。
 - Dock 暂时显示排序中的前 8 个入口，支持点击启动与显示/隐藏面板；尚未实现独立固定项。
-- 窗口验证页切换 Acrylic、Mica、实色、深浅主题，以及自定义圆角裁切，展示原生接口结果。
+- 窗口验证页切换 Glass、实色、深浅主题和自定义圆角裁切，展示实际背景实现与原生接口结果。
 - 默认采用半透明玻璃着色和轻微高光，启动器的可见边界与实际窗口均为 32 DIP 四角圆角；Dock 使用 40 DIP 圆角。原生裁切默认开启。
 - Escape 隐藏面板，Dock 保持显示；面板右上角关闭按钮退出全部窗口。
 
@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 ```
 
-验证会短暂显示自有背景窗口、面板和 Dock，记录 Shell 图标、材质接口返回值、焦点、搜索、分页、排序/取消、重复导入与保存恢复，并截图后自动退出。输出在 `artifacts/GlassWindow/verification/`。
+验证会短暂显示自有背景窗口、面板和 Dock，记录 Shell 图标、合成层、焦点、搜索、分页、排序/取消、重复导入与保存恢复，并截图后自动退出。四角检查会比较窗口显示和隐藏时的实际背景像素，并临时恢复矩形系统背景，确认能检测旧问题。输出在 `artifacts/GlassWindow/verification/`。
 
 需要检查真实鼠标事件链时运行 `scripts/run.ps1 -Verify -InputTest`。该模式会短暂在验证窗口内移动鼠标，检查释放排序与 Escape 取消，然后恢复鼠标位置；全部外部启动请求被拦截。普通 `-Verify` 不模拟鼠标输入。
 

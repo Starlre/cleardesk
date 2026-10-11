@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-sdk.ps1
 git --version
 ```
 
-setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全局 PATH。当前固定 10.0.401，允许同一功能带的稳定补丁滚动；WPF 实验尚无第三方 NuGet 依赖。SQLite 驱动、MVVM 库等依赖在实际引入时记录版本。
+setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全局 PATH。当前固定 10.0.401，允许同一功能带的稳定补丁滚动。玻璃背景引入微软 Win2D.uwp 1.28.2 和 Microsoft.VCRTForwarders.140 1.1.0；Windows SDK 引用由目标框架还原。脚本将 NuGet 缓存保存在 `.tools/nuget-packages/`，首次构建需要访问 NuGet。SQLite 驱动、MVVM 库等依赖在实际引入时记录版本。
 
 ## 首轮实现顺序
 
@@ -45,7 +45,7 @@ setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全�
 - 后续实验使用 `spike/glass-window`、`spike/shell-integration` 等短分支。
 - 正式功能使用 `feat/launcher-grid`、`feat/dock` 等分支。
 - 有需要并行开发时再创建额外 worktree；当前只建立一个工作目录中的本地仓库。
-- 初始仓库不配置远程地址；远程托管目标确定后再添加。
+- GitHub 远程仓库：`https://github.com/Starlre/glass-desk`，私有；`origin` 使用 HTTPS。
 - 每个提交保持范围明确，代码、相关文档和验证结果一起提交。
 
 建议提交信息：`docs: ...`、`feat: ...`、`fix: ...`、`chore: ...`。
@@ -60,7 +60,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -NoBuild
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify -NoBuild
 ```
 
-默认 Release。验证模式短暂显示自有背景、面板和 Dock，最多等待 60 秒，自动退出并生成 `artifacts/GlassWindow/verification/`。隔离桌面中 GDI 截图可能失败；本次在可访问交互桌面的运行环境中完成截图。实验状态使用 `artifacts/GlassWindow/state.json`，不写入正式应用数据目录。
+默认 Release、x64，输出为 `experiments/GlassWindow/bin/x64/Release/net10.0-windows10.0.22621.0/`。验证模式短暂显示自有背景、面板和 Dock，最多等待 60 秒，自动退出并生成 `artifacts/GlassWindow/verification/`。隔离桌面中 GDI 截图可能失败；本次在可访问交互桌面的运行环境中完成截图。实验状态使用 `artifacts/GlassWindow/state.json`，不写入正式应用数据目录。
 
 附加 `-InputTest` 可验证实际鼠标事件链，验证期间会移动鼠标，并在结束后恢复位置。该模式拦截全部外部应用启动；日常检查只需 `-Verify`。
 

@@ -7,7 +7,7 @@ param(
 . (Join-Path $PSScriptRoot 'common.ps1')
 if (-not $NoBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration }
 if ($InputTest -and -not $Verify) { throw '-InputTest requires -Verify.' }
-$taskApp = Join-Path $script:GlassDeskRoot "experiments/GlassWindow/bin/$Configuration/net10.0-windows/GlassDesk.GlassWindow.exe"
+$taskApp = Join-Path $script:GlassDeskRoot "experiments/GlassWindow/bin/x64/$Configuration/net10.0-windows10.0.22621.0/GlassDesk.GlassWindow.exe"
 if (-not (Test-Path -LiteralPath $taskApp)) { throw 'Application output is missing. Run scripts/build.ps1 first.' }
 $taskState = Join-Path $script:GlassDeskRoot 'artifacts/GlassWindow'
 $taskArguments = @('--state-root', ('"{0}"' -f $taskState))

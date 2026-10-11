@@ -34,6 +34,7 @@ public partial class App : Application
             Dock.Left = work.Left + (work.Width - Dock.Width) / 2;
             Dock.Top = Math.Min(work.Bottom - Dock.Height - 12, launcher.Top + launcher.Height + 20);
             Window? fixture = verify ? SmokeVerifier.CreateBackdrop(launcher, work) : null;
+            if (fixture is not null) launcher.Topmost = true; // Keep the fixture visible when the verifier hides UI for pixel comparison.
             fixture?.Show();
             launcher.Show(); Dock.Show();
             if (fixture is not null)

@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace GlassDesk.GlassWindow;
 
-public enum BackdropMode { Acrylic = 3, Mica = 2, Solid = 1 }
+public enum BackdropMode { Glass, Solid }
 
 public sealed record SurfaceReport(string Window, string OsVersion, bool Layered, bool NoActivate,
     int BackdropResult, int FrameResult, int CornerResult, uint Dpi, bool RegionApplied)
@@ -15,13 +15,16 @@ public sealed record SurfaceReport(string Window, string OsVersion, bool Layered
     public bool HighContrast { get; init; }
     public string? FallbackReason { get; init; }
     public double CornerRadius { get; init; }
+    public string BackdropImplementation { get; init; } = "";
+    public long BackdropHandle { get; init; }
 }
 
 public class SurfaceWindow : Window
 {
     private HwndSource? _source;
+    private ClippedBackdrop? _backdrop;
     protected bool IsDock { get; set; }
-    public BackdropMode Material { get; private set; } = BackdropMode.Acrylic;
+    public BackdropMode Material { get; private set; } = BackdropMode.Glass;
     public bool UseCustomContour { get; set; } = true;
     public double SurfaceRadius => IsDock ? 40 : 32;
     public SurfaceReport? Report { get; private set; }
@@ -42,9 +45,10 @@ public class SurfaceWindow : Window
             ApplyMaterial(Material);
         };
         SizeChanged += (_, _) => UpdateContour();
+        LocationChanged += (_, _) => _backdrop?.SyncPosition();
         ContentRendered += (_, _) => UpdateContour();
-        IsVisibleChanged += (_, _) => { if (IsVisible) UpdateContour(); };
-        Closed += (_, _) => _source?.RemoveHook(WindowProc);
+        IsVisibleChanged += (_, _) => { if (IsVisible) UpdateContour(); else _backdrop?.Hide(); };
+        Closed += (_, _) => { _source?.RemoveHook(WindowProc); _backdrop?.Dispose(); };
     }
 
     public void ApplyMaterial(BackdropMode mode)
@@ -57,7 +61,7 @@ public class SurfaceWindow : Window
         Native.DwmSetWindowAttribute(hwnd, 17, ref enabled, sizeof(int));
         int nonClientRendering = 2;
         Native.DwmSetWindowAttribute(hwnd, 2, ref nonClientRendering, sizeof(int));
-        var margins = new Native.Margins(-1, -1, -1, -1);
+        var margins = new Native.Margins(0, 0, 0, 0);
         var frame = Native.DwmExtendFrameIntoClientArea(hwnd, ref margins);
         int dark = App.IsLightTheme ? 0 : 1;
         Native.DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));
@@ -65,13 +69,23 @@ public class SurfaceWindow : Window
         var round = Native.DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
         int borderColor = unchecked((int)0xFFFFFFFE); // DWMWA_COLOR_NONE: WPF draws the only edge.
         Native.DwmSetWindowAttribute(hwnd, 34, ref borderColor, sizeof(int));
-        int backdrop = (int)mode;
+        int backdrop = 1; // Disable the rectangular system background.
         var material = Native.DwmSetWindowAttribute(hwnd, 38, ref backdrop, sizeof(int));
         bool transparent = ReadTransparencySetting();
         string? fallback = mode == BackdropMode.Solid ? "User selected solid" :
-            material < 0 ? "System backdrop unavailable" : SystemParameters.HighContrast ? "High contrast" :
+            material < 0 ? "Could not disable rectangular system backdrop" : SystemParameters.HighContrast ? "High contrast" :
             !transparent ? "System transparency disabled" : null;
-        if (fallback is not null) App.ApplyTheme(App.IsLightTheme, true);
+        if (fallback is null)
+        {
+            try { _backdrop ??= new ClippedBackdrop(hwnd); }
+            catch (Exception exception) when (exception is COMException or System.IO.FileNotFoundException
+                or System.ComponentModel.Win32Exception or TypeInitializationException)
+            {
+                material = exception.HResult;
+                fallback = "Composition unavailable: " + exception.Message;
+            }
+        }
+        App.ApplyTheme(App.IsLightTheme, fallback is not null);
         long style = Native.GetWindowExStyle(hwnd);
         Report = new SurfaceReport(Title, Environment.OSVersion.Version.ToString(),
             (style & 0x80000) != 0, (style & 0x08000000) != 0,
@@ -81,7 +95,9 @@ public class SurfaceWindow : Window
             RenderTier = RenderCapability.Tier >> 16,
             HighContrast = SystemParameters.HighContrast,
             FallbackReason = fallback,
-            CornerRadius = SurfaceRadius
+            CornerRadius = SurfaceRadius,
+            BackdropImplementation = fallback is null ? "Windows Composition / clipped Gaussian blur" : "Solid fallback",
+            BackdropHandle = _backdrop?.Handle.ToInt64() ?? 0
         };
         UpdateContour();
         SurfaceChanged?.Invoke(this, EventArgs.Empty);
@@ -94,18 +110,25 @@ public class SurfaceWindow : Window
         int corner = UseCustomContour ? 1 : 2;
         int round = Native.DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
         bool applied = false;
-        if (UseCustomContour && Native.GetWindowRect(hwnd, out var bounds))
+        if (Native.GetWindowRect(hwnd, out var bounds))
         {
             int width = bounds.Right - bounds.Left;
             int height = bounds.Bottom - bounds.Top;
             uint dpi = Native.GetDpiForWindow(hwnd);
             int diameter = Math.Min(Math.Min(width, height), (int)Math.Round(2 * SurfaceRadius * dpi / 96.0));
-            nint region = Native.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+            nint region = UseCustomContour
+                ? Native.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter)
+                : Native.CreateRectRgn(0, 0, width, height);
             if (region != 0)
             {
-                applied = Native.SetWindowRgn(hwnd, region, true) != 0;
-                if (!applied) Native.DeleteObject(region); // The OS owns a region only after success.
+                var blur = new Native.BlurBehind { Flags = 3, Enabled = 1, Region = region };
+                Native.DwmEnableBlurBehindWindow(hwnd, ref blur); // Preserve client alpha without a rectangular frame.
+                bool regionSet = Native.SetWindowRgn(hwnd, region, true) != 0;
+                applied = regionSet && UseCustomContour;
+                if (!regionSet) Native.DeleteObject(region); // The OS owns a region only after success.
             }
+            _backdrop?.Update(width, height, UseCustomContour ? diameter / 2f : 0,
+                IsVisible && WindowState != WindowState.Minimized && Report.FallbackReason is null);
         }
         else Native.SetWindowRgn(hwnd, 0, true);
         Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round };
@@ -114,6 +137,8 @@ public class SurfaceWindow : Window
     private nint WindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         if (IsDock && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
+        if (message == 0x47) _backdrop?.SyncPosition(); // Keep the backdrop directly behind UI after movement/z-order changes.
+        if (message == 0x5 && wParam == 1) _backdrop?.Hide(); // WM_SIZE / SIZE_MINIMIZED
         if (message == 0x2E0) Dispatcher.BeginInvoke(UpdateContour); // Rebuild physical contour after WPF applies a DPI change.
         if (message is 0x31E or 0x320 or 0x1A or 0x31A) Dispatcher.BeginInvoke(() =>
         {
@@ -141,6 +166,7 @@ internal static class Native
     { public int Left = left, Right = right, Top = top, Bottom = bottom; }
     [StructLayout(LayoutKind.Sequential)]
     internal struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] internal struct BlurBehind { public int Flags, Enabled; public nint Region; public int Transition; }
     [StructLayout(LayoutKind.Sequential)] internal struct CursorPoint { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] internal struct MouseInput
     { public int X, Y; public uint Data, Flags, Time; public nuint ExtraInfo; }
@@ -149,6 +175,7 @@ internal static class Native
 
     [DllImport("dwmapi.dll")] internal static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
     [DllImport("dwmapi.dll")] internal static extern int DwmExtendFrameIntoClientArea(nint hwnd, ref Margins margins);
+    [DllImport("dwmapi.dll")] internal static extern int DwmEnableBlurBehindWindow(nint hwnd, ref BlurBehind blur);
     [DllImport("user32.dll")] internal static extern uint GetDpiForWindow(nint hwnd);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool GetWindowRect(nint hwnd, out Rect rect);
     [DllImport("user32.dll")] internal static extern int SetWindowRgn(nint hwnd, nint region, [MarshalAs(UnmanagedType.Bool)] bool redraw);
@@ -168,6 +195,8 @@ internal static class Native
         else SetWindowLong(hwnd, -20, (int)value);
     }
     [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool IsWindowVisible(nint hwnd);
+    [DllImport("user32.dll")] internal static extern nint GetWindow(nint hwnd, uint command);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool GetCursorPos(out CursorPoint point);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll", SetLastError = true)] internal static extern uint SendInput(uint count, Input[] inputs, int size);
