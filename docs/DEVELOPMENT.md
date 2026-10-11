@@ -45,7 +45,7 @@ setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全�
 - 后续实验使用 `spike/glass-window`、`spike/shell-integration` 等短分支。
 - 正式功能使用 `feat/launcher-grid`、`feat/dock` 等分支。
 - 有需要并行开发时再创建额外 worktree；当前只建立一个工作目录中的本地仓库。
-- GitHub 远程仓库：`https://github.com/Starlre/glass-desk`，私有；`origin` 使用 HTTPS。
+- GitHub 远程仓库：`https://github.com/Starlre/glass-desk`，公开；`origin` 使用 HTTPS。
 - 每个提交保持范围明确，代码、相关文档和验证结果一起提交。
 
 建议提交信息：`docs: ...`、`feat: ...`、`fix: ...`、`chore: ...`。
