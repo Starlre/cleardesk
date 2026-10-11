@@ -4,8 +4,10 @@
         xmlns:local="clr-namespace:GlassDesk.GlassWindow"
         Title="Glass Desk Dock" Width="620" Height="88" WindowStyle="None" ResizeMode="NoResize"
         Background="Transparent" AllowsTransparency="False" ShowInTaskbar="False" ShowActivated="False" Topmost="True">
-    <Border CornerRadius="40" Background="{DynamicResource SurfaceTint}" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1" Padding="14,12">
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+    <Border CornerRadius="40" Background="{DynamicResource SurfaceTint}" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1">
+        <Grid>
+        <Border CornerRadius="39" Background="{StaticResource GlassSheen}" IsHitTestVisible="False" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="14,12">
             <Button Style="{StaticResource QuietButton}" Background="Transparent" BorderBrush="Transparent" Padding="10" Click="OnToggleLauncher" ToolTip="打开应用面板" AutomationProperties.Name="打开应用面板">
                 <Path Data="M0,0H6V6H0Z M10,0H16V6H10Z M20,0H26V6H20Z M0,10H6V16H0Z M10,10H16V16H10Z M20,10H26V16H20Z M0,20H6V26H0Z M10,20H16V26H10Z M20,20H26V26H20Z"
                       Fill="{DynamicResource TextBrush}" Width="26" Height="26" />
@@ -20,5 +22,6 @@
                 </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
         </StackPanel>
+        </Grid>
     </Border>
 </local:SurfaceWindow>

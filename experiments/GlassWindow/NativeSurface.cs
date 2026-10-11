@@ -15,6 +15,7 @@ public sealed record SurfaceReport(string Window, string OsVersion, bool Layered
     public int RenderTier { get; init; }
     public bool HighContrast { get; init; }
     public string? FallbackReason { get; init; }
+    public double CornerRadius { get; init; }
 }
 
 public class SurfaceWindow : Window
@@ -22,7 +23,8 @@ public class SurfaceWindow : Window
     private HwndSource? _source;
     protected bool IsDock { get; set; }
     public BackdropMode Material { get; private set; } = BackdropMode.Acrylic;
-    public bool UseCustomContour { get; set; }
+    public bool UseCustomContour { get; set; } = true;
+    public double SurfaceRadius => IsDock ? 40 : 32;
     public SurfaceReport? Report { get; private set; }
     public event EventHandler? SurfaceChanged;
 
@@ -31,7 +33,8 @@ public class SurfaceWindow : Window
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
             CaptionHeight = 0, ResizeBorderThickness = new Thickness(0),
-            GlassFrameThickness = new Thickness(-1), UseAeroCaptionButtons = false
+            GlassFrameThickness = new Thickness(-1), UseAeroCaptionButtons = false,
+            CornerRadius = new CornerRadius(32)
         });
         SourceInitialized += (_, _) =>
         {
@@ -78,7 +81,8 @@ public class SurfaceWindow : Window
             ClearColor = _source?.CompositionTarget?.BackgroundColor.ToString() ?? "unavailable",
             RenderTier = RenderCapability.Tier >> 16,
             HighContrast = SystemParameters.HighContrast,
-            FallbackReason = fallback
+            FallbackReason = fallback,
+            CornerRadius = SurfaceRadius
         };
         UpdateContour();
         SurfaceChanged?.Invoke(this, EventArgs.Empty);
@@ -93,7 +97,8 @@ public class SurfaceWindow : Window
         {
             int width = bounds.Right - bounds.Left;
             int height = bounds.Bottom - bounds.Top;
-            int diameter = IsDock ? height : (int)(48 * Report.Dpi / 96.0);
+            uint dpi = Native.GetDpiForWindow(hwnd);
+            int diameter = Math.Min(Math.Min(width, height), (int)Math.Round(2 * SurfaceRadius * dpi / 96.0));
             nint region = Native.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
             if (region != 0)
             {
@@ -102,12 +107,13 @@ public class SurfaceWindow : Window
             }
         }
         else Native.SetWindowRgn(hwnd, 0, true);
-        Report = Report with { RegionApplied = applied };
+        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd) };
     }
 
     private nint WindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         if (IsDock && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
+        if (message == 0x2E0) Dispatcher.BeginInvoke(UpdateContour); // Rebuild physical contour after WPF applies a DPI change.
         if (message is 0x31E or 0x320 or 0x1A or 0x31A) Dispatcher.BeginInvoke(() =>
         {
             App.ApplyTheme(App.IsLightTheme, Material == BackdropMode.Solid);
@@ -145,6 +151,9 @@ internal static class Native
     [DllImport("user32.dll")] internal static extern uint GetDpiForWindow(nint hwnd);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool GetWindowRect(nint hwnd, out Rect rect);
     [DllImport("user32.dll")] internal static extern int SetWindowRgn(nint hwnd, nint region, [MarshalAs(UnmanagedType.Bool)] bool redraw);
+    [DllImport("user32.dll")] internal static extern int GetWindowRgn(nint hwnd, nint region);
+    [DllImport("gdi32.dll")] internal static extern nint CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool PtInRegion(nint region, int x, int y);
     [DllImport("gdi32.dll")] internal static extern nint CreateRoundRectRgn(int left, int top, int right, int bottom, int width, int height);
     [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool DeleteObject(nint handle);
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern nint GetWindowLongPtr(nint hwnd, int index);

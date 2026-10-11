@@ -7,7 +7,9 @@
         AllowDrop="True" Drop="OnExternalDrop" PreviewDragOver="OnExternalDragOver">
     <Window.InputBindings><KeyBinding Key="Escape" Command="{Binding EscapeCommand}" /></Window.InputBindings>
     <AdornerDecorator>
-        <Border CornerRadius="22" BorderThickness="1" BorderBrush="{DynamicResource SurfaceEdge}" Background="{DynamicResource SurfaceTint}">
+        <Border CornerRadius="32" BorderThickness="1" BorderBrush="{DynamicResource SurfaceEdge}" Background="{DynamicResource SurfaceTint}">
+            <Grid>
+            <Border CornerRadius="31" Background="{StaticResource GlassSheen}" IsHitTestVisible="False" />
             <Grid x:Name="Root" Margin="32,20,32,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="42" /><RowDefinition Height="62" /><RowDefinition Height="*" /><RowDefinition Height="34" />
@@ -73,6 +75,7 @@
                     </StackPanel>
                     <TextBlock Text="拖动图标整理顺序" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
                 </Grid>
+            </Grid>
             </Grid>
         </Border>
     </AdornerDecorator>

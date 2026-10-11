@@ -3,8 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <SolidColorBrush x:Key="SurfaceTint" Color="#8020232B" />
-        <SolidColorBrush x:Key="SurfaceEdge" Color="#55FFFFFF" />
+        <SolidColorBrush x:Key="SurfaceTint" Color="#48202530" />
+        <LinearGradientBrush x:Key="SurfaceEdge" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#80FFFFFF" Offset="0" />
+            <GradientStop Color="#24FFFFFF" Offset="0.5" />
+            <GradientStop Color="#48FFFFFF" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="GlassSheen" StartPoint="0,0" EndPoint="0.3,1">
+            <GradientStop Color="#18FFFFFF" Offset="0" />
+            <GradientStop Color="#06FFFFFF" Offset="0.4" />
+            <GradientStop Color="#00FFFFFF" Offset="1" />
+        </LinearGradientBrush>
         <SolidColorBrush x:Key="TextBrush" Color="#FAFAFC" />
         <SolidColorBrush x:Key="MutedBrush" Color="#CDD0D9" />
         <SolidColorBrush x:Key="ControlFill" Color="#18FFFFFF" />

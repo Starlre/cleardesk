@@ -84,11 +84,17 @@ public partial class App : Application
     {
         IsLightTheme = light;
         var colors = light
-            ? new Dictionary<string, string> { ["SurfaceTint"] = solid ? "#FFF0F2F6" : "#ADF0F2F6", ["SurfaceEdge"] = "#66000000",
+            ? new Dictionary<string, string> { ["SurfaceTint"] = solid ? "#FFF0F2F6" : "#70F0F3F8",
                 ["TextBrush"] = "#151923", ["MutedBrush"] = "#3C4351", ["ControlFill"] = "#18000000", ["HoverFill"] = "#25000000", ["AccentBrush"] = "#1759AF" }
-            : new Dictionary<string, string> { ["SurfaceTint"] = solid ? "#FF20232B" : "#8020232B", ["SurfaceEdge"] = "#55FFFFFF",
+            : new Dictionary<string, string> { ["SurfaceTint"] = solid ? "#FF20232B" : "#48202530",
                 ["TextBrush"] = "#FAFAFC", ["MutedBrush"] = "#CDD0D9", ["ControlFill"] = "#18FFFFFF", ["HoverFill"] = "#26FFFFFF", ["AccentBrush"] = "#B8D6FF" };
         foreach (var pair in colors)
             Current.Resources[pair.Key] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pair.Value));
+        Current.Resources["SurfaceEdge"] = new LinearGradientBrush(new GradientStopCollection
+        {
+            new((Color)ColorConverter.ConvertFromString(light ? "#90FFFFFF" : "#80FFFFFF"), 0),
+            new((Color)ColorConverter.ConvertFromString(light ? "#30000000" : "#24FFFFFF"), 0.5),
+            new((Color)ColorConverter.ConvertFromString(light ? "#45FFFFFF" : "#48FFFFFF"), 1)
+        }, new Point(0, 0), new Point(0, 1));
     }
 }

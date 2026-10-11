@@ -42,6 +42,20 @@ internal static class SmokeVerifier
         Check(model.Entries.All(entry => entry.Icon is Freezable { IsFrozen: true }), "Shell icons frozen for STA-to-UI transfer");
         Check(launcher.Report is { Layered: false, BackdropResult: 0, FrameResult: 0 }, "Launcher non-layered HWND accepts Acrylic and frame extension");
         Check(dock.Report is { Layered: false, NoActivate: true, BackdropResult: 0 }, "Dock uses non-layered no-activate HWND and accepts Acrylic");
+        Check(launcher.Report is { RegionApplied: true, CornerRadius: 32 }, "Launcher starts with a matching 32 DIP four-corner contour");
+        nint launcherHandle = new WindowInteropHelper(launcher).Handle;
+        nint launcherRegion = Native.CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            Check(launcherRegion != 0 && Native.GetWindowRgn(launcherHandle, launcherRegion) > 0
+                && Native.GetWindowRect(launcherHandle, out _), "Launcher exposes its native rounded region");
+            Native.GetWindowRect(launcherHandle, out var bounds);
+            int width = bounds.Right - bounds.Left, height = bounds.Bottom - bounds.Top;
+            Check(!Native.PtInRegion(launcherRegion, 2, 2) && !Native.PtInRegion(launcherRegion, width - 3, 2)
+                && !Native.PtInRegion(launcherRegion, 2, height - 3) && !Native.PtInRegion(launcherRegion, width - 3, height - 3)
+                && Native.PtInRegion(launcherRegion, width / 2, height / 2), "All four corner cutouts are outside the actual window region");
+        }
+        finally { if (launcherRegion != 0) Native.DeleteObject(launcherRegion); }
         nint dockHandle = new WindowInteropHelper(dock).Handle;
         Check(Native.SendMessage(dockHandle, 0x21, 0, (nint)0x02010001) == 3, "Dock WM_MOUSEACTIVATE returns MA_NOACTIVATE");
         nint foreground = Native.GetForegroundWindow();

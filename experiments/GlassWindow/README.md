@@ -21,6 +21,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 - 同页拖动排序，邻近图标以 180 ms 位移动画让位；Escape 取消拖动。图标右键菜单提供前后移动。
 - Dock 暂时显示排序中的前 8 个入口，支持点击启动与显示/隐藏面板；尚未实现独立固定项。
 - 窗口验证页切换 Acrylic、Mica、实色、深浅主题，以及自定义圆角裁切，展示原生接口结果。
+- 默认采用半透明玻璃着色和轻微高光，启动器的可见边界与实际窗口均为 32 DIP 四角圆角；Dock 使用 40 DIP 圆角。原生裁切默认开启。
 - Escape 隐藏面板，Dock 保持显示；面板右上角关闭按钮退出全部窗口。
 
 实验排序保存在 `artifacts/GlassWindow/state.json`。手动导入的有效路径可在下次启动恢复。此 JSON 仅为实验数据；正式应用仍计划使用 SQLite。
