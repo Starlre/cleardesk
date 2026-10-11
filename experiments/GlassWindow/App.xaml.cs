@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public partial class App : Application
 {
@@ -65,7 +65,7 @@ public partial class App : Application
         {
             Directory.CreateDirectory(output);
             await File.WriteAllTextAsync(Path.Combine(output, "error.txt"), exception.ToString());
-            if (!verify) MessageBox.Show(exception.Message, "Glass Desk 启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!verify) MessageBox.Show(exception.Message, "澄桌 启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
             RestoreForeground();
             Shutdown(1);
         }

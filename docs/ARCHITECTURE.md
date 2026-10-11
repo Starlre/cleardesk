@@ -6,8 +6,8 @@
 
 ```mermaid
 flowchart TD
-    App[GlassDesk.App：启动器 / Dock / 设置] --> Core[GlassDesk.Core：模型 / 排序 / 搜索 / 服务接口]
-    App --> Infra[GlassDesk.Infrastructure：服务实现与启动组合]
+    App[ClearDesk.App：启动器 / Dock / 设置] --> Core[ClearDesk.Core：模型 / 排序 / 搜索 / 服务接口]
+    App --> Infra[ClearDesk.Infrastructure：服务实现与启动组合]
     Infra --> Core
     Infra --> Shell[Windows Shell：应用来源 / 图标 / 启动]
     Infra --> Native[Win32：窗口 / 热键 / 显示器 / 事件]
@@ -20,13 +20,13 @@ flowchart TD
 
 | 模块 | 主要职责 |
 | --- | --- |
-| GlassDesk.App | MVVM、窗口、视图模型、网格布局、拖动反馈、主题 |
-| GlassDesk.Core | 启动入口模型、搜索规则、候选排序、配置模型与服务接口 |
-| GlassDesk.Infrastructure | Shell COM、原生窗口服务、热键、持久化、缓存、日志 |
+| ClearDesk.App | MVVM、窗口、视图模型、网格布局、拖动反馈、主题 |
+| ClearDesk.Core | 启动入口模型、搜索规则、候选排序、配置模型与服务接口 |
+| ClearDesk.Infrastructure | Shell COM、原生窗口服务、热键、持久化、缓存、日志 |
 | experiments/GlassWindow | 材质、圆角、阴影与命中区域验证 |
 | experiments/ShellIntegration | 入口枚举、图标读取、拖入与启动验证 |
 | experiments/DockBehavior | 焦点、显隐、窗口激活与显示环境验证 |
-| GlassDesk.Core.Tests | 有实际意义的排序、搜索和数据规则测试 |
+| ClearDesk.Core.Tests | 有实际意义的排序、搜索和数据规则测试 |
 
 ## 窗口与材质
 
@@ -78,6 +78,6 @@ flowchart TD
 
 ## 数据与线程
 
-运行数据计划存储在 `%LocalAppData%\GlassDesk\`，SQLite 数据、图标缓存和日志分目录保存。UI 线程只承担界面工作；COM/Shell 操作按其线程模型执行，使用后台 STA 工作线程时不得直接跨线程传递 COM 对象。
+运行数据计划存储在 `%LocalAppData%\ClearDesk\`，SQLite 数据、图标缓存和日志分目录保存。UI 线程只承担界面工作；COM/Shell 操作按其线程模型执行，使用后台 STA 工作线程时不得直接跨线程传递 COM 对象。
 
 数据库迁移带版本号，迁移前备份；配置写入和排序写入使用事务。首次实现时定义日志轮转策略，避免记录敏感启动参数。当前尚未创建数据库或应用数据目录。

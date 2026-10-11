@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public partial class DockWindow : SurfaceWindow
 {

@@ -1,4 +1,4 @@
-# Glass Desk
+# 澄桌（ClearDesk）
 
 Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然的图标拖拽让位为核心体验。
 
@@ -8,7 +8,7 @@ Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然�
 - 首发平台：Windows 11；系统背景材质首先验证 Windows 11 22H2 及以上。
 - 主技术路线：C#、.NET 10 LTS、WPF/MVVM、Win32/Shell COM、SQLite。
 - 界面框架决策：WPF 的背景模糊已有本机截图证据；胶囊阴影、命中与多屏验证完成后再最终确认。
-- `GlassDesk.sln` 当前包含 `experiments/GlassWindow`；正式 `src/` 与核心测试项目仍是目录骨架。
+- `ClearDesk.sln` 当前包含 `experiments/GlassWindow`；正式 `src/` 与核心测试项目仍是目录骨架。
 - 本机已准备项目内 .NET SDK 10.0.401；没有更改系统 SDK 安装或全局 PATH。
 
 ## 启动原型
@@ -31,6 +31,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 
 面板使用带圆角裁切的 Windows Composition 背景模糊，启动器为 32 DIP、Dock 为 40 DIP；玻璃背景与窗口轮廓一致，见 [最新验证记录](docs/evidence/2026-10-11-clipped-backdrop.md)。
 
+![澄桌启动器](docs/evidence/cleardesk-launcher.png)
+
 ## 文档入口
 
 | 文档 | 内容 |
@@ -46,9 +48,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 ## 项目目录
 
 ```text
-glass desk/
+cleardesk/
 ├── README.md
-├── GlassDesk.sln
+├── ClearDesk.sln
 ├── global.json
 ├── start.cmd
 ├── .editorconfig
@@ -72,15 +74,15 @@ glass desk/
 │   ├── build.ps1
 │   └── run.ps1
 ├── src/
-│   ├── GlassDesk.App/
+│   ├── ClearDesk.App/
 │   │   └── .gitkeep
-│   ├── GlassDesk.Core/
+│   ├── ClearDesk.Core/
 │   │   └── .gitkeep
-│   └── GlassDesk.Infrastructure/
+│   └── ClearDesk.Infrastructure/
 │       └── .gitkeep
 ├── experiments/
 │   ├── GlassWindow/
-│   │   ├── GlassDesk.GlassWindow.csproj
+│   │   ├── ClearDesk.GlassWindow.csproj
 │   │   ├── README.md
 │   │   └── WPF 窗口、原生适配、索引与验证源码
 │   ├── ShellIntegration/
@@ -88,7 +90,7 @@ glass desk/
 │   └── DockBehavior/
 │       └── .gitkeep
 ├── tests/
-│   └── GlassDesk.Core.Tests/
+│   └── ClearDesk.Core.Tests/
 │       └── .gitkeep
 └── assets/
     └── .gitkeep

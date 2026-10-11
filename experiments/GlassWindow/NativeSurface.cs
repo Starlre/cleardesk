@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public enum BackdropMode { Glass, Solid }
 

@@ -5,7 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 internal static class SmokeVerifier
 {
@@ -21,7 +21,7 @@ internal static class SmokeVerifier
             Geometry.Parse("M1200,180 L1200,900 L780,900 Z")));
         return new Window
         {
-            Title = "Glass Desk · Controlled backdrop", Width = launcher.Width + 80,
+            Title = "澄桌 · Controlled backdrop", Width = launcher.Width + 80,
             Height = Math.Min(work.Height - 8, launcher.Height + 144),
             Left = launcher.Left - 40, Top = Math.Max(work.Top, launcher.Top - 16),
             ShowActivated = false, ShowInTaskbar = false, Topmost = true, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,

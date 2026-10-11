@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {

@@ -45,14 +45,14 @@ setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全�
 - 后续实验使用 `spike/glass-window`、`spike/shell-integration` 等短分支。
 - 正式功能使用 `feat/launcher-grid`、`feat/dock` 等分支。
 - 有需要并行开发时再创建额外 worktree；当前只建立一个工作目录中的本地仓库。
-- GitHub 远程仓库：`https://github.com/Starlre/glass-desk`，公开；`origin` 使用 HTTPS。
+- GitHub 远程仓库：`https://github.com/Starlre/cleardesk`，公开；`origin` 使用 HTTPS。
 - 每个提交保持范围明确，代码、相关文档和验证结果一起提交。
 
-建议提交信息：`docs: ...`、`feat: ...`、`fix: ...`、`chore: ...`。
+Git 提交说明和推送更新备注使用中文，例如：`修复：裁切玻璃背景的圆角`、`文档：更新开发指南`。该约定同时记录在根目录 `AGENTS.md`。
 
 ## 构建与验证
 
-`GlassDesk.sln` 目前包含 `experiments/GlassWindow/GlassDesk.GlassWindow.csproj`。从仓库根目录执行：
+`ClearDesk.sln` 目前包含 `experiments/GlassWindow/ClearDesk.GlassWindow.csproj`。从仓库根目录执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1

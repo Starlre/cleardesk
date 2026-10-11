@@ -6,7 +6,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public sealed record CatalogEntry(string Name, string SourcePath, ImageSource? Icon);
 
@@ -103,7 +103,7 @@ public static class CatalogService
             try { token.ThrowIfCancellationRequested(); completion.TrySetResult(action()); }
             catch (OperationCanceledException) { completion.TrySetCanceled(token); }
             catch (Exception exception) { completion.TrySetException(exception); }
-        }) { IsBackground = true, Name = "GlassDesk.Shell.STA" };
+        }) { IsBackground = true, Name = "ClearDesk.Shell.STA" };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         return completion.Task;

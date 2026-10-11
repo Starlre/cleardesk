@@ -5,7 +5,7 @@ using Windows.UI.Composition;
 using Windows.UI.Composition.Desktop;
 using WinRT;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 // The system HWND backdrop fills a rectangle even when SetWindowRgn is rounded.
 // A composition visual owns both backdrop sampling and its geometry clip.
@@ -50,7 +50,7 @@ internal sealed class ClippedBackdrop : IDisposable
         _visual.Brush = _brush;
         _clip = _compositor.CreateGeometricClip(_geometry);
         _visual.Clip = _clip;
-        _hwnd = CreateWindowEx(0x082000A0, "STATIC", "Glass Desk clipped backdrop", 0x80000000,
+        _hwnd = CreateWindowEx(0x082000A0, "STATIC", "澄桌 clipped backdrop", 0x80000000,
             0, 0, 1, 1, 0, 0, 0, 0); // No redirection bitmap, no activation/taskbar, transparent to input.
         if (_hwnd == 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         var interop = _compositor.As<ICompositorDesktopInterop>();

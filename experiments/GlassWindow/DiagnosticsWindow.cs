@@ -2,13 +2,13 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace GlassDesk.GlassWindow;
+namespace ClearDesk.GlassWindow;
 
 public sealed class DiagnosticsWindow : Window
 {
     public DiagnosticsWindow(SurfaceWindow launcher, SurfaceWindow dock)
     {
-        Title = "Glass Desk · 窗口验证"; Width = 560; Height = 550;
+        Title = "澄桌 · 窗口验证"; Width = 560; Height = 550;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = System.Windows.Media.Brushes.White; Foreground = System.Windows.Media.Brushes.Black;
         var root = new StackPanel { Margin = new Thickness(24) };

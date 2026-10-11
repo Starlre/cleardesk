@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "experiments", "experiments"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GlassWindow", "GlassWindow", "{048F930B-F694-DE4D-89D3-8DEA0FA9791D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlassDesk.GlassWindow", "experiments\GlassWindow\GlassDesk.GlassWindow.csproj", "{E52AACDF-02FD-41EF-A52A-BCE138E1D3A5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClearDesk.GlassWindow", "experiments\GlassWindow\ClearDesk.GlassWindow.csproj", "{E52AACDF-02FD-41EF-A52A-BCE138E1D3A5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
