@@ -1,0 +1,79 @@
+<local:SurfaceWindow x:Class="GlassDesk.GlassWindow.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:GlassDesk.GlassWindow"
+        Title="Glass Desk" Width="1040" Height="640" WindowStartupLocation="Manual"
+        WindowStyle="None" ResizeMode="NoResize" Background="Transparent" AllowsTransparency="False"
+        AllowDrop="True" Drop="OnExternalDrop" PreviewDragOver="OnExternalDragOver">
+    <Window.InputBindings><KeyBinding Key="Escape" Command="{Binding EscapeCommand}" /></Window.InputBindings>
+    <AdornerDecorator>
+        <Border CornerRadius="22" BorderThickness="1" BorderBrush="{DynamicResource SurfaceEdge}" Background="{DynamicResource SurfaceTint}">
+            <Grid x:Name="Root" Margin="32,20,32,16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="42" /><RowDefinition Height="62" /><RowDefinition Height="*" /><RowDefinition Height="34" />
+                </Grid.RowDefinitions>
+                <Grid MouseLeftButtonDown="OnHeaderDrag">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="GLASS DESK" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Text=" /  应用" FontSize="13" Foreground="{DynamicResource MutedBrush}" Margin="14,0,0,0" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource QuietButton}" Padding="10,6" Background="Transparent" BorderBrush="Transparent"
+                                Click="OnDiagnostics" ToolTip="外观与窗口验证" AutomationProperties.Name="外观与窗口验证">
+                            <Path Data="M 8,0 L 8,16 M 0,8 L 16,8 M 2,2 L 14,14 M 2,14 L 14,2" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5" Width="16" Height="16" />
+                        </Button>
+                        <Button Style="{StaticResource QuietButton}" Padding="10,6" Background="Transparent" BorderBrush="Transparent"
+                                Click="OnClose" ToolTip="退出 Glass Desk" AutomationProperties.Name="退出 Glass Desk" Margin="8,0,0,0">
+                            <Path Data="M 0,0 L 12,12 M 0,12 L 12,0" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5" Width="12" Height="12" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.Row="1" Margin="0,9,0,9">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border CornerRadius="12" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1" Background="{DynamicResource ControlFill}" Padding="14,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="26" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Path Data="M 12,6 A 6,6 0 1 1 0,6 A 6,6 0 1 1 12,6 M 10.5,10.5 L 16,16" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5" Width="16" Height="16" VerticalAlignment="Center" />
+                            <TextBox x:Name="SearchBox" Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="14" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0"
+                                     Foreground="{DynamicResource TextBrush}" CaretBrush="{DynamicResource TextBrush}" AutomationProperties.Name="搜索应用" />
+                            <TextBlock Grid.Column="1" Text="搜索应用" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                    <Button Grid.Column="1" Content="添加" Click="OnAdd" Style="{StaticResource QuietButton}" Margin="12,0,0,0" MinWidth="76" />
+                </Grid>
+                <Grid Grid.Row="2">
+                    <ItemsControl x:Name="Tiles" ItemsSource="{Binding VisibleEntries}" KeyboardNavigation.TabNavigation="Continue">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><local:AnimatedTilePanel Columns="7" RowHeight="108" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource TileButton}" Click="OnLaunch" PreviewMouseLeftButtonDown="OnTileMouseDown"
+                                        AutomationProperties.Name="{Binding Name}" ToolTip="{Binding Name}">
+                                    <Button.ContextMenu><ContextMenu><MenuItem Header="向前移动" Click="OnMoveEarlier" /><MenuItem Header="向后移动" Click="OnMoveLater" /></ContextMenu></Button.ContextMenu>
+                                    <StackPanel>
+                                        <Image Source="{Binding Icon}" Width="44" Height="44" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                        <TextBlock Text="{Binding Name}" Margin="0,10,0,0" FontSize="11.5" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="112" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="没有匹配的应用" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}">
+                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding VisibleEntries.Count}" Value="0"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+                <Grid Grid.Row="3">
+                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource MutedBrush}" FontSize="11" VerticalAlignment="Center" MaxWidth="310" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="‹" Style="{StaticResource QuietButton}" Command="{Binding PreviousPageCommand}" Padding="12,3" Background="Transparent" BorderBrush="Transparent" AutomationProperties.Name="上一页" />
+                        <TextBlock Text="{Binding PageLabel}" VerticalAlignment="Center" Margin="16,0" FontSize="12" />
+                        <Button Content="›" Style="{StaticResource QuietButton}" Command="{Binding NextPageCommand}" Padding="12,3" Background="Transparent" BorderBrush="Transparent" AutomationProperties.Name="下一页" />
+                    </StackPanel>
+                    <TextBlock Text="拖动图标整理顺序" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+                </Grid>
+            </Grid>
+        </Border>
+    </AdornerDecorator>
+</local:SurfaceWindow>

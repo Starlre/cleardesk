@@ -4,12 +4,30 @@ Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然�
 
 ## 当前状态
 
-- 阶段：开发准备，文档与仓库初始化。
+- 阶段：P1 技术验证，已有可运行的玻璃窗口原型。
 - 首发平台：Windows 11；系统背景材质首先验证 Windows 11 22H2 及以上。
 - 主技术路线：C#、.NET 10 LTS、WPF/MVVM、Win32/Shell COM、SQLite。
-- 界面框架决策：WPF 为主方案，完成玻璃窗口验证后确认；WinUI 3 为备选。
-- 当前目录中的 `src/`、`tests/`、`experiments/` 是目录骨架，尚未创建 `.sln`、`.csproj` 或可运行程序。
-- 已检查的本机环境：Git 可用；缺少 .NET SDK，因此当前不能构建应用。
+- 界面框架决策：WPF 的背景模糊已有本机截图证据；胶囊阴影、命中与多屏验证完成后再最终确认。
+- `GlassDesk.sln` 当前包含 `experiments/GlassWindow`；正式 `src/` 与核心测试项目仍是目录骨架。
+- 本机已准备项目内 .NET SDK 10.0.401；没有更改系统 SDK 安装或全局 PATH。
+
+## 启动原型
+
+当前电脑可直接双击 [start.cmd](start.cmd)，或从仓库根目录执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
+```
+
+首次克隆且尚未准备 SDK 时，先运行 `scripts/setup-sdk.ps1`。验证版支持本机快捷方式、搜索分页、同页拖动让位、文件路径导入和 Dock 启动；详情见 [实验说明](experiments/GlassWindow/README.md)。
+
+自动检查与截图：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
+```
+
+验证会短暂显示自有窗口并自动退出。实际运行记录见 [首轮验证结果](docs/evidence/2026-10-11-glass-window.md)。
 
 ## 文档入口
 
@@ -28,6 +46,9 @@ Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然�
 ```text
 glass desk/
 ├── README.md
+├── GlassDesk.sln
+├── global.json
+├── start.cmd
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore
@@ -42,7 +63,12 @@ glass desk/
 │   ├── decisions/
 │   │   └── 0001-platform-and-stack.md
 │   └── evidence/
-│       └── .gitkeep
+│       └── 首轮验证记录、报告与窗口截图
+├── scripts/
+│   ├── common.ps1
+│   ├── setup-sdk.ps1
+│   ├── build.ps1
+│   └── run.ps1
 ├── src/
 │   ├── GlassDesk.App/
 │   │   └── .gitkeep
@@ -52,7 +78,9 @@ glass desk/
 │       └── .gitkeep
 ├── experiments/
 │   ├── GlassWindow/
-│   │   └── .gitkeep
+│   │   ├── GlassDesk.GlassWindow.csproj
+│   │   ├── README.md
+│   │   └── WPF 窗口、原生适配、索引与验证源码
 │   ├── ShellIntegration/
 │   │   └── .gitkeep
 │   └── DockBehavior/
@@ -68,4 +96,4 @@ Git 不追踪空目录，因此用 `.gitkeep` 保留尚未实现的模块。首�
 
 ## 下一步
 
-准备 .NET 10 SDK，然后按 [技术验证](docs/VALIDATION.md) 开始 `experiments/GlassWindow`：验证背景材质、圆角、阴影、命中区域和焦点行为。验证结果决定正式应用是否继续采用 WPF。
+按 [技术验证](docs/VALIDATION.md) 继续检查胶囊裁切后的阴影、鼠标操作、透明设置降级和多屏 DPI；补全 Shell 启动语义与打包应用验证后，再提取正式应用模块。当前原型不代表完整 MVP 已交付。

@@ -10,24 +10,25 @@
 | Windows 版本号 | `10.0.22631.0`，Windows 11 构建系列 |
 | PowerShell | `5.1.22621.6133` |
 | Git | `2.55.0.windows.5` |
-| .NET SDK | 未安装；`dotnet --info` 显示 `No SDKs were found` |
-| .NET 运行时 | 存在 .NET 8 等运行时；运行时不能替代 SDK |
+| .NET SDK | 项目内 `.tools/dotnet/` 已准备 10.0.401，官方 SHA-512 校验通过 |
+| 本地 .NET 运行时 | SDK 包含 10.0.12；系统原有 .NET 8 等运行时保持可用 |
 
-当前可以维护文档和 Git，不能构建、运行或测试尚未生成的 .NET 项目。
+当前可构建和运行玻璃窗口实验。正式源码与测试项目尚未创建。
 
 ## 环境准备
 
-需要 .NET 10 SDK，建议使用支持 .NET 10 的 Visual Studio，或 VS Code 配合 C# 工具。SDK 下载入口：<https://dotnet.microsoft.com/download/dotnet/10.0>。
+使用 `global.json` 固定的 .NET 10 SDK，建议使用支持 .NET 10 的 Visual Studio，或 VS Code 配合 C# 工具。SDK 下载入口：<https://dotnet.microsoft.com/download/dotnet/10.0>。
 
 SDK 准备完成后执行：
 
 ```powershell
-dotnet --list-sdks
-dotnet --info
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-sdk.ps1
+& .\.tools\dotnet\dotnet.exe --list-sdks
+& .\.tools\dotnet\dotnet.exe --info
 git --version
 ```
 
-确认 SDK 的确存在，再创建实验项目。当前未固定 SDK 补丁号；首次成功构建后提交 `global.json`，记录已验证版本及滚动策略。SQLite 驱动、MVVM 库等依赖在实际引入时记录版本。
+setup 脚本下载微软官方 SDK 到项目内并校验 SHA-512，不注册全局 PATH。当前固定 10.0.401，允许同一功能带的稳定补丁滚动；WPF 实验尚无第三方 NuGet 依赖。SQLite 驱动、MVVM 库等依赖在实际引入时记录版本。
 
 ## 首轮实现顺序
 
@@ -51,7 +52,17 @@ git --version
 
 ## 构建与验证
 
-当前无 `.sln`、`.csproj`，因此不存在可以成功执行的构建命令。正式解决方案创建后，补齐确切文件名、还原、构建和测试命令。
+`GlassDesk.sln` 目前包含 `experiments/GlassWindow/GlassDesk.GlassWindow.csproj`。从仓库根目录执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -NoBuild
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify -NoBuild
+```
+
+默认 Release。验证模式短暂显示自有背景、面板和 Dock，最多等待 60 秒，自动退出并生成 `artifacts/GlassWindow/verification/`。隔离桌面中 GDI 截图可能失败；本次在可访问交互桌面的运行环境中完成截图。实验状态使用 `artifacts/GlassWindow/state.json`，不写入正式应用数据目录。
+
+附加 `-InputTest` 可验证实际鼠标事件链，验证期间会移动鼠标，并在结束后恢复位置。该模式拦截全部外部应用启动；日常检查只需 `-Verify`。
 
 对排序、取消拖动、搜索和持久化迁移等业务规则编写必要的测试。玻璃材质、焦点、多屏、系统拖入与窗口切换按 VALIDATION 人工复核。不得把编译成功记为视觉或系统集成验证通过。
 

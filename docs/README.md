@@ -9,6 +9,7 @@
 3. [DEVELOPMENT.md](DEVELOPMENT.md)：准备本机环境和开发流程。
 4. [VALIDATION.md](VALIDATION.md)：执行首轮技术验证。
 5. [ROADMAP.md](ROADMAP.md)：更新任务进度和阶段验收。
+6. [首轮验证结果](evidence/2026-10-11-glass-window.md)：查看当前原型的检查结果和窗口截图。
 
 [decisions/0001-platform-and-stack.md](decisions/0001-platform-and-stack.md) 记录初始选型。后续重大技术调整使用新的 ADR 记录原因、结果与影响。
 
