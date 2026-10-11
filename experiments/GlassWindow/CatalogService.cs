@@ -8,7 +8,11 @@ using System.Windows.Media.Imaging;
 
 namespace ClearDesk.GlassWindow;
 
-public sealed record CatalogEntry(string Name, string SourcePath, ImageSource? Icon);
+public sealed record CatalogEntry(string Name, string SourcePath, ImageSource? Icon)
+{
+    internal string LaunchKey { get; init; } = LaunchIdentity.ForSource(SourcePath);
+    internal IReadOnlyList<string> SourcePaths { get; init; } = [SourcePath];
+}
 
 public static class CatalogService
 {
@@ -31,9 +35,10 @@ public static class CatalogService
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
-        var entries = paths.Distinct(StringComparer.OrdinalIgnoreCase)
+        var entries = MergeDuplicates(paths.Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(Path.GetFileNameWithoutExtension, StringComparer.CurrentCultureIgnoreCase)
-            .Take(196).Select(path => { token.ThrowIfCancellationRequested(); return Create(path); }).ToList();
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(path => { token.ThrowIfCancellationRequested(); return Create(path); })).Take(196).ToList();
         if (entries.Count == 0)
         {
             foreach (var name in new[] { "notepad.exe", "explorer.exe", "calc.exe" })
@@ -49,9 +54,16 @@ public static class CatalogService
     public static Task<IReadOnlyList<CatalogEntry>> ImportAsync(IEnumerable<string> paths, CancellationToken token = default)
     {
         string[] snapshot = paths.ToArray();
-        return OnSta<IReadOnlyList<CatalogEntry>>(() => snapshot.Where(path => File.Exists(path) || Directory.Exists(path))
-            .Select(path => { token.ThrowIfCancellationRequested(); return Create(path); }).ToArray(), token);
+        return OnSta<IReadOnlyList<CatalogEntry>>(() => MergeDuplicates(snapshot.Where(path => File.Exists(path) || Directory.Exists(path))
+            .Select(path => { token.ThrowIfCancellationRequested(); return Create(path); })), token);
     }
+
+    internal static IReadOnlyList<CatalogEntry> MergeDuplicates(IEnumerable<CatalogEntry> entries) => entries
+        .GroupBy(entry => entry.LaunchKey, StringComparer.Ordinal)
+        .Select(group => group.First() with
+        {
+            SourcePaths = group.SelectMany(entry => entry.SourcePaths).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+        }).ToArray();
 
     private static bool IsShortcut(string path) => Path.GetExtension(path).Equals(".lnk", StringComparison.OrdinalIgnoreCase)
         || Path.GetExtension(path).Equals(".url", StringComparison.OrdinalIgnoreCase);
@@ -76,7 +88,7 @@ public static class CatalogService
         }
         catch (ArgumentException) { }
         catch (COMException) { }
-        return new CatalogEntry(name, Path.GetFullPath(path), icon ?? FallbackIcon());
+        return new CatalogEntry(name, Path.GetFullPath(path), icon ?? FallbackIcon()) { LaunchKey = LaunchIdentity.Read(path) };
     }
 
     private static ImageSource FallbackIcon()

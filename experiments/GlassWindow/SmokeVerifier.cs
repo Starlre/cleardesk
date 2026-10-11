@@ -61,7 +61,10 @@ internal static class SmokeVerifier
             finally { if (region != 0) Native.DeleteObject(region); }
         }
 
+        await CatalogVerifier.RunAsync(output, Check);
         Check(model.Entries.Count >= 3, "Real Shell entries loaded");
+        Check(model.Entries.Select(entry => entry.Entry.LaunchKey).Distinct(StringComparer.Ordinal).Count() == model.Entries.Count,
+            "Real catalog contains no duplicate launch identities");
         Check(ReferenceEquals(((System.Windows.Input.KeyBinding)launcher.InputBindings[0]).Command, model.EscapeCommand), "Escape binding uses live cancel/hide command");
         Check(model.Entries.All(entry => entry.Icon is Freezable { IsFrozen: true }), "Shell icons frozen for STA-to-UI transfer");
         Check(launcher.Report is { Layered: false, BackdropResult: 0, FallbackReason: null, BackdropHandle: not 0 }, "Launcher uses non-layered UI over clipped Composition blur");
@@ -173,6 +176,7 @@ internal static class SmokeVerifier
         {
             Status = "passed", OsVersion = Environment.OSVersion.Version.ToString(),
             Runtime = Environment.Version.ToString(), EntryCount = model.Entries.Count,
+            MergedShortcutCount = model.Entries.Sum(entry => entry.Entry.SourcePaths.Count - 1),
             Checks = checks, InitialSurfaces = originalReports, PointerInputTest = inputTest,
             VisualVerification = "Screenshots captured; arbitrary background motion, external mouse drag, mixed DPI and shadows require manual review."
         }, new JsonSerializerOptions { WriteIndented = true }));

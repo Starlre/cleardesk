@@ -47,7 +47,7 @@ public partial class App : Application
                 try
                 {
                     var paths = JsonSerializer.Deserialize<string[]>(await File.ReadAllTextAsync(stateFile, _lifetime.Token)) ?? [];
-                    var existing = entries.Select(entry => entry.SourcePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var existing = entries.SelectMany(entry => entry.SourcePaths).ToHashSet(StringComparer.OrdinalIgnoreCase);
                     entries.AddRange(await CatalogService.ImportAsync(paths.Where(path => !existing.Contains(path)), _lifetime.Token));
                 }
                 catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException) { }

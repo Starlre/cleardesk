@@ -70,12 +70,14 @@ public sealed class LauncherViewModel : ObservableObject
                 var order = JsonSerializer.Deserialize<string[]>(File.ReadAllText(_stateFile)) ?? [];
                 var ranks = order.Select((path, index) => (path, index)).GroupBy(pair => pair.path, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.First().index, StringComparer.OrdinalIgnoreCase);
-                var sorted = _entries.OrderBy(entry => ranks.GetValueOrDefault(entry.Entry.SourcePath, int.MaxValue)).ToArray();
+                var sorted = _entries.OrderBy(entry => entry.Entry.SourcePaths.Min(path => ranks.GetValueOrDefault(path, int.MaxValue))).ToArray();
                 _entries.Clear(); _entries.AddRange(sorted);
             }
             catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
             { stateFailed = true; }
         }
+        var unique = CatalogService.MergeDuplicates(_entries.Select(entry => entry.Entry));
+        _entries.Clear(); _entries.AddRange(unique.Select(entry => new EntryViewModel(entry)));
         Refresh(); RefreshDock();
         Status = stateFailed ? "排序文件无法读取，使用默认顺序" : $"{_entries.Count} 个入口";
     }
@@ -85,7 +87,8 @@ public sealed class LauncherViewModel : ObservableObject
         int added = 0;
         foreach (var entry in entries)
         {
-            if (_entries.Any(existing => existing.Entry.SourcePath.Equals(entry.SourcePath, StringComparison.OrdinalIgnoreCase))) continue;
+            if (_entries.Any(existing => existing.Entry.LaunchKey == entry.LaunchKey
+                || existing.Entry.SourcePath.Equals(entry.SourcePath, StringComparison.OrdinalIgnoreCase))) continue;
             _entries.Add(new EntryViewModel(entry)); added++;
         }
         Refresh(); RefreshDock();
