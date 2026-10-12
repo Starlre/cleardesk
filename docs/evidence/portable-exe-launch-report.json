@@ -1,0 +1,18 @@
+﻿{
+    "Status":  "passed",
+    "InitialLauncherExit":  0,
+    "RepeatedLauncherExit":  0,
+    "SingleInstance":  true,
+    "CacheReused":  true,
+    "AlternateWorkingDirectory":  "C:\\Windows",
+    "Modules":  [
+                    {
+                        "ModuleName":  "coreclr.dll",
+                        "FileName":  "F:\\glass desk\\artifacts\\package-verification\\cache\\packages\\385687fb54575cdedea9e2484efb9b65a0c63d00a03f387210c24a14b6312324\\coreclr.dll"
+                    },
+                    {
+                        "ModuleName":  "Microsoft.Graphics.Canvas.dll",
+                        "FileName":  "F:\\glass desk\\artifacts\\package-verification\\cache\\packages\\385687fb54575cdedea9e2484efb9b65a0c63d00a03f387210c24a14b6312324\\Microsoft.Graphics.Canvas.dll"
+                    }
+                ]
+}

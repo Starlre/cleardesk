@@ -11,7 +11,7 @@
 | 搜索与分页 | 按名称搜索，每页最多 28 个入口；搜索不会改变保存的顺序 |
 | 整理与移除 | 同页拖动时图标让位；Escape 取消排序；右键调整顺序或移除，源文件保持完整 |
 | 快速启动 | 点击应用、文件或文件夹，通过 Windows Shell 按原快捷方式和文件关联打开 |
-| 浮动 Dock | 显示面板排序的前 8 个入口，九宫格单击切换面板，按住九宫格或空白处可移动 Dock |
+| 浮动 Dock | 设置可选固定排序或最近使用，最多 8 个入口；九宫格单击切换面板，按住九宫格或空白处移动 Dock |
 | Dock 大小 | 右侧把手、右键菜单或 Ctrl + 滚轮调整大小，位置和尺寸自动保存 |
 | 玻璃外观 | 半透明背景模糊与四角圆角，设置中实时调整透明度，下次启动沿用上一次的值 |
 | 托盘常驻 | 所有窗口不显示任务栏按钮；最小化只收起面板、保留 Dock；关闭或 Escape 隐藏全部窗口，托盘可恢复或退出 |
@@ -27,6 +27,21 @@
 - 界面框架决策：WPF 的背景模糊已有本机截图证据；胶囊阴影、命中与多屏验证完成后再最终确认。
 - `ClearDesk.sln` 当前包含 `experiments/GlassWindow`；正式 `src/` 与核心测试项目仍是目录骨架。
 - 本机已准备项目内 .NET SDK 10.0.401；没有更改系统 SDK 安装或全局 PATH。
+
+## EXE 免安装版
+
+在 Windows 11 22H2 及以上 x64 系统中，双击 `artifacts/releases/ClearDesk.exe` 即可使用，无需另装 .NET 10。首次自动展开运行文件到 `%LocalAppData%\ClearDesk\packages\`，个人设置保存在 `%LocalAppData%\ClearDesk\data\`，发布包不包含开发配置。
+
+另提供 `artifacts/releases/ClearDesk-Online.exe` 轻量版，约 9.4 MiB，比完整离线版小 86.5%。它保留澄桌程序及玻璃组件，首次启动从微软官网下载约 72.6 MiB 的 .NET 运行时，显示进度并校验 SHA-512；缓存后可离线使用。无需管理员权限，不修改系统 .NET，个人设置与离线版共用。这里减少的是分发文件体积，运行时仍需要本地磁盘空间。
+
+从源码生成 EXE：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-online.ps1
+```
+
+输出包含单文件 EXE、SHA-256 校验文件；具体打包方式见 [开发指南](docs/DEVELOPMENT.md)，本机验证见 [离线版打包记录](docs/evidence/2026-10-12-portable-exe.md) 和 [轻量版验证](docs/evidence/2026-10-12-online-exe.md)。发布产物保存在本地，不进入 Git。
 
 ## 启动原型
 

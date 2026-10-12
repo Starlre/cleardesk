@@ -34,6 +34,9 @@ public sealed class LauncherViewModel : ObservableObject
 {
     public const int PageSize = 28;
     private readonly string? _stateFile;
+    private readonly string? _dockPreferencesFile;
+    private readonly List<string> _recentLaunchKeys;
+    public DockSortMode DockSortMode { get; private set; }
     private readonly List<EntryViewModel> _entries = [];
     private IReadOnlyList<CatalogEntry> _poolEntries = [];
     private string _searchText = "";
@@ -50,14 +53,18 @@ public sealed class LauncherViewModel : ObservableObject
     public string PageLabel => $"{_page + 1} / {PageCount}";
     public int PageCount => Math.Max(1, (Filtered().Count() + PageSize - 1) / PageSize);
     public bool CanReorder => string.IsNullOrWhiteSpace(SearchText);
-    internal Action<CatalogEntry>? LaunchOverride { get; set; }
+    internal Func<CatalogEntry, bool>? LaunchOverride { get; set; }
     public ICommand PreviousPageCommand { get; }
     public ICommand NextPageCommand { get; }
     public ICommand EscapeCommand { get; set; } = new RelayCommand(() => { });
 
-    public LauncherViewModel(string? stateFile)
+    public LauncherViewModel(string? stateFile, string? dockPreferencesFile = null)
     {
         _stateFile = stateFile;
+        _dockPreferencesFile = dockPreferencesFile;
+        var preferences = DockPreferencesStore.Read(dockPreferencesFile);
+        DockSortMode = preferences.SortMode;
+        _recentLaunchKeys = [.. preferences.RecentLaunchKeys ?? []];
         PreviousPageCommand = new RelayCommand(() => { _page--; Refresh(); }, () => _page > 0);
         NextPageCommand = new RelayCommand(() => { _page++; Refresh(); }, () => _page + 1 < PageCount);
     }
@@ -164,9 +171,27 @@ public sealed class LauncherViewModel : ObservableObject
     public void CommitOrder() { RefreshDock(); Save(); }
     public void Launch(EntryViewModel entry)
     {
-        if (LaunchOverride is not null) { LaunchOverride(entry.Entry); return; }
-        if (!CatalogService.Launch(entry.Entry, out string? error)) Status = $"无法打开：{error}";
-        else Status = $"已打开 {entry.Name}";
+        string? error = null;
+        bool opened = LaunchOverride is not null ? LaunchOverride(entry.Entry) : CatalogService.Launch(entry.Entry, out error);
+        if (!opened) { Status = $"无法打开：{error ?? "启动未完成"}"; return; }
+        Status = $"已打开 {entry.Name}";
+        string key = entry.Entry.LaunchKey;
+        _recentLaunchKeys.Remove(key); _recentLaunchKeys.Insert(0, key);
+        if (_recentLaunchKeys.Count > DockPreferencesStore.HistoryLimit)
+            _recentLaunchKeys.RemoveRange(DockPreferencesStore.HistoryLimit, _recentLaunchKeys.Count - DockPreferencesStore.HistoryLimit);
+        if (DockSortMode == DockSortMode.Recent) RefreshDock();
+        SaveDockPreferences();
+    }
+    public bool SetDockSortMode(DockSortMode mode)
+    {
+        if (!Enum.IsDefined(mode)) return false;
+        DockSortMode = mode; RefreshDock(); Changed(nameof(DockSortMode));
+        return SaveDockPreferences();
+    }
+    private bool SaveDockPreferences()
+    {
+        if (DockPreferencesStore.Save(_dockPreferencesFile, new(DockSortMode, _recentLaunchKeys.ToArray()))) return true;
+        Status = "Dock 排序设置与使用记录保存失败，请检查目录权限"; return false;
     }
     private IEnumerable<EntryViewModel> Filtered() => _entries.Where(entry => entry.Name.Contains(SearchText.Trim(), StringComparison.CurrentCultureIgnoreCase));
     private void Refresh()
@@ -179,7 +204,14 @@ public sealed class LauncherViewModel : ObservableObject
     private void RefreshDock()
     {
         DockEntries.Clear();
-        foreach (var entry in _entries.Take(8)) DockEntries.Add(entry);
+        IEnumerable<EntryViewModel> ordered = _entries;
+        if (DockSortMode == DockSortMode.Recent)
+        {
+            var ranks = _recentLaunchKeys.Select((key, index) => (key, index))
+                .ToDictionary(pair => pair.key, pair => pair.index, StringComparer.Ordinal);
+            ordered = _entries.OrderBy(entry => ranks.GetValueOrDefault(entry.Entry.LaunchKey, int.MaxValue));
+        }
+        foreach (var entry in ordered.Take(8)) DockEntries.Add(entry);
     }
     private bool Save()
     {

@@ -47,8 +47,9 @@ public partial class App : Application
             Transparency = AppearanceSettingsStore.Read(_appearanceFile).Transparency;
             // The old state.json contains an automatically populated catalog, not explicit choices.
             // Keep it untouched; panel-state.json stores only manually selected entries.
-            var viewModel = new LauncherViewModel(verify ? null : Path.Combine(stateRoot, "panel-state.json"));
-            if (verify) viewModel.LaunchOverride = _ => { }; // Verification must never launch external applications.
+            var viewModel = new LauncherViewModel(verify ? null : Path.Combine(stateRoot, "panel-state.json"),
+                verify ? null : Path.Combine(stateRoot, "dock-preferences.json"));
+            if (verify) viewModel.LaunchOverride = _ => true; // Verification must never launch external applications.
             var launcher = new MainWindow(viewModel, _lifetime.Token) { ShowActivated = !verify };
             MainWindow = launcher;
             Dock = new DockWindow(launcher, viewModel, verify ? null : Path.Combine(stateRoot, "dock-layout.json"));

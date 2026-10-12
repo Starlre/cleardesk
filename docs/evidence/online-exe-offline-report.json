@@ -1,0 +1,20 @@
+﻿{
+    "Status":  "passed",
+    "OfflineProxy":  "http://127.0.0.1:1",
+    "InitialLauncherExit":  0,
+    "RepeatedLauncherExit":  0,
+    "SingleInstance":  true,
+    "AppCacheReused":  true,
+    "RuntimeCacheReused":  true,
+    "AlternateWorkingDirectory":  "C:\\Windows",
+    "Modules":  [
+                    {
+                        "ModuleName":  "coreclr.dll",
+                        "FileName":  "F:\\glass desk\\artifacts\\online-package-verification\\cache\\runtimes\\10.0.12-win-x64\\shared\\Microsoft.NETCore.App\\10.0.12\\coreclr.dll"
+                    },
+                    {
+                        "ModuleName":  "Microsoft.Graphics.Canvas.dll",
+                        "FileName":  "F:\\glass desk\\artifacts\\online-package-verification\\cache\\packages\\d23f06ae178d32c3dc779d3d6b7132da26af481ffe1fe6e2adf32848bb53ae12\\Microsoft.Graphics.Canvas.dll"
+                    }
+                ]
+}

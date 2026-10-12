@@ -11,18 +11,19 @@ public sealed class SettingsWindow : Window
 {
     internal Slider TransparencySlider { get; }
     internal TextBlock TransparencyValue { get; }
+    internal ComboBox DockSortSelector { get; }
 
     public SettingsWindow(SurfaceWindow launcher, SurfaceWindow dock)
     {
         var app = (App)Application.Current;
-        Title = "澄桌 · 设置"; Width = 480; Height = 400; MinWidth = 400; MinHeight = 340;
+        Title = "澄桌 · 设置"; Width = 480; Height = Math.Min(580, SystemParameters.WorkArea.Height - 48); MinWidth = 400; MinHeight = 340;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = new SolidColorBrush(Color.FromRgb(245, 247, 250));
         Foreground = new SolidColorBrush(Color.FromRgb(24, 30, 40));
         FontSize = 14;
         var root = new StackPanel { Margin = new Thickness(24) };
         Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        root.Children.Add(new TextBlock { Text = "外观设置", FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 24) });
+        root.Children.Add(new TextBlock { Text = "设置", FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 24) });
         var label = new DockPanel();
         TransparencyValue = new TextBlock { Text = $"{app.Transparency:0}%", HorizontalAlignment = HorizontalAlignment.Right };
         DockPanel.SetDock(TransparencyValue, Dock.Right); label.Children.Add(TransparencyValue);
@@ -49,6 +50,29 @@ public sealed class SettingsWindow : Window
         root.Children.Add(saveStatus);
         var theme = new CheckBox { Content = "浅色外观", IsChecked = App.IsLightTheme, Margin = new Thickness(0, 16, 0, 20) };
         root.Children.Add(theme);
+
+        var model = (LauncherViewModel)launcher.DataContext;
+        root.Children.Add(new TextBlock { Text = "Dock 应用排序", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8) });
+        DockSortSelector = new ComboBox { SelectedValuePath = "Tag", MinHeight = 32 };
+        DockSortSelector.Items.Add(new ComboBoxItem { Content = "固定排序", Tag = DockSortMode.Fixed });
+        DockSortSelector.Items.Add(new ComboBoxItem { Content = "最近使用", Tag = DockSortMode.Recent });
+        DockSortSelector.SelectedValue = model.DockSortMode;
+        AutomationProperties.SetName(DockSortSelector, "Dock 应用排序");
+        root.Children.Add(DockSortSelector);
+        var sortHint = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 8, 0, 8) };
+        root.Children.Add(sortHint);
+        var sortSaveStatus = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap };
+        root.Children.Add(sortSaveStatus);
+        void UpdateSortHint() => sortHint.Text = model.DockSortMode == DockSortMode.Recent
+            ? "通过澄桌最近启动的应用排在前面，未使用的按面板顺序补齐，最多显示 8 个。"
+            : "按主面板顺序显示前 8 个应用，使用应用不会改变顺序。";
+        DockSortSelector.SelectionChanged += (_, _) =>
+        {
+            if (DockSortSelector.SelectedValue is not DockSortMode mode) return;
+            sortSaveStatus.Text = model.SetDockSortMode(mode) ? "" : "Dock 排序保存失败，请检查目录权限。";
+            UpdateSortHint();
+        };
+        UpdateSortHint();
 
         var advanced = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
         root.Children.Add(new Expander { Header = "高级选项", Content = advanced });

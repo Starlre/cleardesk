@@ -226,6 +226,7 @@ internal static class SmokeVerifier
         File.Delete(output + ".tmp");
         await DockVerifier.RunAsync(launcher, dock, model, output, Check);
         await AppearanceVerifier.RunAsync(launcher, dock, output, Check);
+        await DockOrderingVerifier.RunAsync(launcher, model, output, Check);
         if (inputTest) await VerifyPointerDragAsync(launcher, dock, model, checks);
 
         model.Status = $"{model.Entries.Count} 个入口";
@@ -302,7 +303,7 @@ internal static class SmokeVerifier
         var original = model.SnapshotOrder();
         double dockLeft = dock.Left, dockTop = dock.Top, dockScale = dock.DockScale;
         int launchAttempts = 0;
-        model.LaunchOverride = _ => launchAttempts++;
+        model.LaunchOverride = _ => { launchAttempts++; return true; };
         void Button(uint flags)
         {
             if (Native.SendInput(1, [new Native.Input { Mouse = new Native.MouseInput { Flags = flags } }],
@@ -397,7 +398,7 @@ internal static class SmokeVerifier
         {
             Button(0x4);
             Native.SetCursorPos(previous.X, previous.Y);
-            model.LaunchOverride = _ => { };
+            model.LaunchOverride = _ => true;
             model.RestoreOrder(original);
             dock.SetScale(dockScale, false); dock.MoveTo(dockLeft, dockTop, false);
         }

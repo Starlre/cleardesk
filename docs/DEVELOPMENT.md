@@ -80,9 +80,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify -N
 
 `SettingsWindow` 替代原窗口验证页，常用外观设置与高级诊断分开。透明度滑动条范围为 0–100，支持键盘和可访问的 RangeValue 接口；仅修改共享 `SurfaceTint` 颜色的 alpha，不调整窗口、图标或文字的整体不透明度。`AppearanceSettingsStore` 原子保存到 `appearance-settings.json`，350 ms 防抖并在关闭设置及退出时补充保存；启动在窗口创建前读取上一次值。实色降级不覆盖偏好。验证采用隔离状态，覆盖滑动条实时效果、设置重开、主题切换、托盘恢复与配置加载。
 
+设置中的「Dock 应用排序」提供 `Fixed` 与 `Recent`，默认固定。`DockPreferencesStore` 原子写入 `dock-preferences.json`；`LauncherViewModel` 在创建时读取模式与最近记录，成功的主面板/Dock 启动统一更新记录，固定模式下也记录但不重排。最多保留 512 个 `LaunchKey`，只从当前已选应用生成最多 8 个 Dock 项，未使用项按主面板顺序补齐。验证通过返回成功/失败的启动替代函数拦截 Shell 启动，检查超出首 8 项进入 Dock、失败不更新、移除和保存恢复。
+
 对排序、取消拖动、搜索和持久化迁移等业务规则编写必要的测试。玻璃材质、焦点、多屏、系统拖入与窗口切换按 VALIDATION 人工复核。不得把编译成功记为视觉或系统集成验证通过。
 
 实验结果至少记录：Windows 构建、SDK、硬件/显示器缩放、步骤、预期、实际结果、证据、通过或失败，以及失败后的决策。
+
+## EXE 打包
+
+执行 `scripts/package.ps1` 生成 `artifacts/releases/ClearDesk.exe` 和 `ClearDesk.exe.sha256`。脚本使用项目 SDK，以 Release、win-x64、自包含方式发布到隔离的 `artifacts/package-build/app/`，携带 .NET 10 WPF 运行时、Win2D 原生组件、manifest 和图标。已有发布输出时，可用 `-NoPublish` 仅重新生成启动器。首次还原自包含运行时包需要 NuGet 网络访问。
+
+`packaging/PortableLauncher.cs` 通过 Windows 自带 .NET Framework 编译器生成小型启动器，并嵌入完整发布 ZIP。双击后按 ZIP 的 SHA-256 展开到 `%LocalAppData%\ClearDesk\packages\<hash>\`，完成标记后重用缓存；同时启动目录内的 `ClearDesk.GlassWindow.exe`。完整展开目录保留 Win2D 的原生 COM manifest 依赖，避免原生组件在 .NET 单文件临时解压目录中无法定位。
+
+启动器默认传入 `--state-root %LocalAppData%\ClearDesk\data`，数据与程序缓存独立，升级发布包不会覆盖已选应用、透明度、Dock 布局和排序偏好。它移除子进程的 `DOTNET_ROOT` 与 `DOTNET_ROOT_X64` 开发环境变量，以使用随包运行时。包内不包含开发状态、日志或验证夹具。
+
+包验证可指定 `--package-root <隔离目录>`，并转发 `--smoke-test --output <报告目录>`；验证模式等待子程序完成并传回退出码。普通运行不保留启动器进程，应用继续驻留托盘。当前支持 Windows 11 22H2 及以上 x64；本机验证结果见 [打包记录](evidence/2026-10-12-portable-exe.md)。
+
+### 轻量联网版
+
+执行 `scripts/package-online.ps1` 生成 `artifacts/releases/ClearDesk-Online.exe` 和对应 SHA-256 文件。该脚本以 framework-dependent 方式发布到独立的 `artifacts/online-package-build/app/`，仅嵌入应用及 Win2D/Windows SDK 等非框架组件，不嵌入 .NET 运行时；`-NoPublish` 可复用已有轻量发布目录。离线 EXE 保留。
+
+同一个 `PortableLauncher.cs` 通过 `ONLINE` 编译条件接入 `RuntimeBootstrap.cs`。首次运行在用户目录下载 .NET 核心与 WindowsDesktop 两个 ZIP，显示进度、支持取消和失败重试，校验后展开到 `%LocalAppData%\ClearDesk\runtimes\10.0.12-win-x64\`。不执行系统安装器；子程序的 `DOTNET_ROOT` 和 `DOTNET_ROOT_X64` 明确指向该私有运行时，同时通过原 apphost 启动以保留 Win2D exe manifest。
+
+`packaging/runtime-downloads.txt` 固定运行时 10.0.12、微软 HTTPS 下载地址和 SHA-512，值来自官方 10.0 发布元数据。修改版本时必须同步两个下载包及校验值，并重新验证实际 EXE。下载失败和取消均清理不完整 ZIP；完成标记只在所有必需文件到位后生成。按用户与版本的 Mutex 避免并发重复下载，后续启动缓存存在时不联网。数据目录与离线版一致。
+
+`packaging/RuntimeBootstrapVerifier.cs` 可用 Windows .NET Framework `csc.exe` 编译为独立检查程序，引用 `System.Windows.Forms`、`System.Drawing` 和两个 `System.IO.Compression` 程序集。其三个参数依次为实际轻量 EXE、首次验证缓存根目录、隔离夹具目录；检查器加载发布 EXE，验证校验失败、路径越界、失败重试、取消清理和不可达代理下的缓存复用。它不编入发布包。实际下载与离线启动记录见 [轻量版验证](evidence/2026-10-12-online-exe.md)。
 
 ## 代码约定
 

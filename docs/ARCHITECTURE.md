@@ -12,7 +12,7 @@
 | `MainWindow` / `LauncherViewModel` | 手选入口、搜索分页、排序取消与启动 |
 | `IconPoolWindow` / `IconPoolViewModel` | 独立候选池、搜索多选、确认后添加 |
 | `CatalogService` | 后台 STA 扫描与完整启动描述去重，图标冻结后传给 UI |
-| `DockWindow` | 前 8 个入口、九宫格单击/拖动区分、等比缩放与屏内限制 |
+| `DockWindow` / `DockPreferencesStore` | 固定或最近使用排序（最多 8 项）、九宫格单击/拖动、缩放与屏内限制 |
 | `SurfaceWindow` / `ClippedBackdrop` | 非 layered 前景、独立合成模糊层、圆角与位置/显隐/层级同步 |
 | `SettingsWindow` / `AppearanceSettingsStore` | 实时透明度与保存、高级材质与诊断 |
 | `TrayIcon` | 原生托盘菜单、Explorer 重启通知、注册重试与资源清理 |
@@ -32,8 +32,11 @@
 | `panel-state.json` | 手动确认的原始入口路径与顺序 | 添加、移除或完成排序 |
 | `dock-layout.json` | `Left`、`Top`、`Scale` | 结束拖动或尺寸/位置操作 |
 | `appearance-settings.json` | `Transparency`（0–100） | 停止调整 350 ms、关闭设置或退出 |
+| `dock-preferences.json` | `SortMode`、`RecentLaunchKeys` | 修改排序选项或成功启动入口 |
 
 显示窗口前读取透明度和 Dock 布局；入口仅恢复手动选择，不自动采用扫描候选。旧 `state.json` 不迁移。配置原子写入，读取失败有默认值，保存失败有反馈。主题与材质仍为会话设置。
+
+`LauncherViewModel` 维护最多 512 条启动身份的最近顺序，成功启动后移到首位，失败不记录；固定模式下记录使用但不改变 Dock。最近模式从已选择入口中按记录排序，未使用项稳定按主面板顺序补齐。启动身份沿用 `LaunchKey`，同目标但参数或权限不同的入口保留独立记录。排序只影响 `DockEntries`，不改动面板顺序；历史不会自动将未选择或已移除的应用加入 Dock。
 
 ## 正式应用目标
 

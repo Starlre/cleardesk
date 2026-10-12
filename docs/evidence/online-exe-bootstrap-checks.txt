@@ -1,0 +1,14 @@
+Actual first-download cache is complete
+Cached runtime works with an unreachable network proxy
+Corrupted archive fails SHA-512 verification
+Archive cannot escape its runtime directory
+Traversal did not create an external file
+Cancelled extraction stops immediately
+Failed network connection is reported
+Failed preparation has no ready marker
+Failed download cleans incomplete archive
+Retry after network failure downloads and completes successfully
+Completed preparation cleans downloaded ZIPs
+Download dialog Cancel interrupts preparation and closes
+User cancellation has no ready marker
+User cancellation removes incomplete downloads
