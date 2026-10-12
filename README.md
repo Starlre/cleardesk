@@ -2,6 +2,10 @@
 
 澄桌是 Windows 桌面应用启动器与浮动 Dock。通过手动选择应用、搜索和拖动排序整理常用入口，使用半透明玻璃面板快速启动。
 
+![澄桌在完整桌面上的磨砂玻璃面板与浮动 Dock](docs/screenshots/desktop-frosted.png)
+
+*真实桌面实拍：72% 透明度，背景壁纸透过玻璃面板并产生模糊，底部 Dock 提供常用入口。截图中的应用已手动添加，首次启动的面板为空。*
+
 ## 软件功能
 
 | 功能 | 当前行为 |
@@ -13,11 +17,40 @@
 | 快速启动 | 点击应用、文件或文件夹，通过 Windows Shell 按原快捷方式和文件关联打开 |
 | 浮动 Dock | 设置可选固定排序或最近使用，最多 8 个入口；九宫格单击切换面板，按住九宫格或空白处移动 Dock |
 | Dock 大小 | 右侧把手、右键菜单或 Ctrl + 滚轮调整大小，位置和尺寸自动保存 |
-| 玻璃外观 | 半透明背景模糊与四角圆角，设置中实时调整透明度，下次启动沿用上一次的值 |
+| 玻璃外观 | 四角圆角和内侧切面高光，透明度同时调整底色与模糊，从实色到清透，下次启动沿用上一次的值 |
+| 桌面图标开关 | 设置中隐藏或恢复全部 Windows 桌面图标，保留澄桌面板与 Dock 图标；不删除文件 |
 | 托盘常驻 | 所有窗口不显示任务栏按钮；最小化只收起面板、保留 Dock；关闭或 Escape 隐藏全部窗口，托盘可恢复或退出 |
 | 重复启动 | 再次启动恢复已有窗口，避免重复创建窗口和托盘图标 |
 
 详细操作和限制见 [使用说明](docs/FEATURES.md)。
+
+## 完整桌面效果
+
+以下截图均在 Windows 11 的同一张真实桌面上拍摄，保留完整壁纸、任务栏和窗口位置。原图为 2560 × 1600，点击图片可查看大图；截图场景见 [截图说明](docs/screenshots/README.md)。
+
+### 清透玻璃
+
+透明度调至 100% 后，背景模糊明显减弱，壁纸细节更清楚；应用图标和文字保持清晰。透明度从 0% 实色到 100% 清透可连续调整，边缘以内侧高光模拟玻璃切面。
+
+![澄桌透明度 100% 的完整桌面效果](docs/screenshots/desktop-clear.png)
+
+### 从图标池选择应用
+
+点击「添加」打开图标池，按名称搜索并多选，确认后才加入主面板。图中搜索 Adobe，已添加的入口单独标记；关闭图标池不会自动加入其余应用。
+
+![完整桌面上的澄桌图标池与搜索结果](docs/screenshots/desktop-icon-pool.png)
+
+### 设置与隐藏桌面图标
+
+设置集中提供透明度、Dock 固定/最近使用排序，以及隐藏 Windows 桌面图标开关。图中系统桌面图标已隐藏，澄桌面板和 Dock 的入口仍显示；关闭开关可恢复，不删除文件。
+
+![完整桌面上的澄桌设置与桌面图标隐藏效果](docs/screenshots/desktop-settings.png)
+
+### 收起主面板，保留 Dock
+
+点击主面板右上角的最小化按钮后，Dock 继续显示。左侧九宫格可以恢复面板，按住九宫格或空白处可移动 Dock；右侧把手、Ctrl + 滚轮和右键菜单可以调整大小。
+
+![澄桌主面板最小化后完整桌面上的独立 Dock](docs/screenshots/desktop-dock.png)
 
 ## 当前状态
 
@@ -59,19 +92,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 ```
 
-验证会短暂显示自有窗口并自动退出。追加 `-InputTest` 可检查实际鼠标排序、Dock 移动和缩放；测试拦截外部启动，并恢复鼠标。最新结果见 [启动与最小化验证](docs/evidence/2026-10-12-startup-and-minimize.md)。
+验证会短暂显示自有窗口并自动退出。追加 `-InputTest` 可检查实际鼠标排序、Dock 移动和缩放；测试拦截外部启动，并恢复鼠标。追加 `-DesktopIconTest` 可检查实际隐藏与恢复桌面图标，结束后恢复原状态。最新一轮 142 项检查通过，最终轻量 EXE 的 133 项检查通过，见 [玻璃与桌面图标验证](docs/evidence/2026-10-12-glass-and-desktop-icons.md)。
 
 面板使用带圆角裁切的 Windows Composition 背景模糊，启动器为 32 DIP、Dock 默认 40 DIP，Dock 缩放时轮廓同步调整；玻璃与窗口边界一致，见 [圆角玻璃验证](docs/evidence/2026-10-11-clipped-backdrop.md)。
-
-![澄桌图标池](docs/evidence/icon-pool-selection.png)
-
-![透明度设置](docs/evidence/transparency-settings.png)
 
 ## 文档入口
 
 | 文档 | 内容 |
 | --- | --- |
 | [软件功能与使用说明](docs/FEATURES.md) | 添加图标、启动、整理、Dock、设置和托盘操作 |
+| [完整桌面截图](docs/screenshots/README.md) | 真实壁纸下的玻璃、图标池、设置与最小化效果 |
 | [产品范围](docs/PRODUCT.md) | MVP、交互约定与后续能力 |
 | [技术架构](docs/ARCHITECTURE.md) | 模块边界、数据模型与 Windows 集成 |
 | [开发指南](docs/DEVELOPMENT.md) | 环境准备、目录约定、Git 工作流 |

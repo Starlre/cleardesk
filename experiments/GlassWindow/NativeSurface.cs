@@ -17,6 +17,7 @@ public sealed record SurfaceReport(string Window, string OsVersion, bool Layered
     public double CornerRadius { get; init; }
     public string BackdropImplementation { get; init; } = "";
     public long BackdropHandle { get; init; }
+    public float BlurAmount { get; init; }
 }
 
 public class SurfaceWindow : Window
@@ -29,6 +30,12 @@ public class SurfaceWindow : Window
     public virtual double SurfaceRadius => IsDock ? 40 : 32;
     public SurfaceReport? Report { get; private set; }
     public event EventHandler? SurfaceChanged;
+
+    internal void UpdateGlassTransparency(double value)
+    {
+        _backdrop?.SetTransparency(value);
+        if (Report is not null && _backdrop is not null) Report = Report with { BlurAmount = _backdrop.BlurAmount };
+    }
 
     public SurfaceWindow()
     {
@@ -132,7 +139,8 @@ public class SurfaceWindow : Window
                 IsVisible && WindowState != WindowState.Minimized && Report.FallbackReason is null);
         }
         else Native.SetWindowRgn(hwnd, 0, true);
-        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round, CornerRadius = SurfaceRadius };
+        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round,
+            CornerRadius = SurfaceRadius, BlurAmount = _backdrop?.BlurAmount ?? 0 };
     }
 
     private nint WindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)

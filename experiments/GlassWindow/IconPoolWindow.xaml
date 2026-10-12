@@ -28,6 +28,8 @@
         </Style>
     </Window.Resources>
     <Border CornerRadius="32" Background="{DynamicResource SurfaceTint}" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1">
+        <Grid>
+        <local:GlassEdge Radius="31" />
         <Grid Margin="28,20,28,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="36" /><RowDefinition Height="30" /><RowDefinition Height="58" />
@@ -85,6 +87,7 @@
                     <Button x:Name="AddSelectedButton" Content="添加到面板" Style="{StaticResource QuietButton}" Click="OnAddSelected" IsEnabled="{Binding CanAdd}" />
                 </StackPanel>
             </Grid>
+        </Grid>
         </Grid>
     </Border>
 </local:SurfaceWindow>

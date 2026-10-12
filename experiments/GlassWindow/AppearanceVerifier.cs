@@ -28,6 +28,26 @@ internal static class AppearanceVerifier
             range.SetValue(80);
             check(Alpha() == 51 && settings.TransparencyValue.Text == "80%",
                 "Higher transparency reduces tint alpha and updates percentage readout");
+            check(launcher.Report!.BlurAmount < 10 && dock.Report!.BlurAmount < 10,
+                "Higher transparency reduces actual backdrop blur on panel and Dock");
+            range.SetValue(0);
+            check(Alpha() == 255 && launcher.Report!.BlurAmount > 30 && launcher.Opacity == 1,
+                "Transparency minimum covers solid glass without dimming foreground icons");
+            await Task.Delay(180);
+            SmokeVerifier.Capture(launcher, Path.Combine(output, "glass-opaque.png"));
+            range.SetValue(100);
+            check(Alpha() == 0 && launcher.Report!.BlurAmount < 1 && dock.Report!.BlurAmount < 1,
+                "Transparency maximum reaches near-clear glass instead of keeping fixed strong blur");
+            settings.Hide();
+            await Task.Delay(180);
+            SmokeVerifier.Capture(launcher, Path.Combine(output, "glass-clear.png"));
+            settings.Show();
+            range.SetValue(50);
+            settings.Hide();
+            await Task.Delay(180);
+            SmokeVerifier.Capture(launcher, Path.Combine(output, "glass-frosted.png"));
+            settings.Show();
+            range.SetValue(80);
             await Task.Delay(400);
             SmokeVerifier.Capture(settings, Path.Combine(output, "transparency-settings.png"));
             app.HideToTray();

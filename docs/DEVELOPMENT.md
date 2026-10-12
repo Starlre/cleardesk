@@ -78,13 +78,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify -N
 
 `DockLayoutStore` 将位置和比例原子写入 `artifacts/GlassWindow/dock-layout.json`，结束拖动时保存，启动时恢复。损坏数据回退默认值，越界位置和比例限制在有效范围；目前仅支持主屏工作区域。验证使用隔离布局文件，不改变用户 Dock 设置；`-InputTest` 检查移动与缩放不抢焦点、不触发应用启动。
 
-`SettingsWindow` 替代原窗口验证页，常用外观设置与高级诊断分开。透明度滑动条范围为 0–100，支持键盘和可访问的 RangeValue 接口；仅修改共享 `SurfaceTint` 颜色的 alpha，不调整窗口、图标或文字的整体不透明度。`AppearanceSettingsStore` 原子保存到 `appearance-settings.json`，350 ms 防抖并在关闭设置及退出时补充保存；启动在窗口创建前读取上一次值。实色降级不覆盖偏好。验证采用隔离状态，覆盖滑动条实时效果、设置重开、主题切换、托盘恢复与配置加载。
+`SettingsWindow` 替代原窗口验证页，常用外观设置与高级诊断分开。透明度滑动条范围为 0–100，支持键盘和可访问的 RangeValue 接口；修改共享 `SurfaceTint` 颜色的 alpha 与实时 GaussianBlur 强度，不调整窗口、图标或文字的整体不透明度。100% 将模糊降到 0.35，0% 使用实色底色。`AppearanceSettingsStore` 原子保存到 `appearance-settings.json`，350 ms 防抖并在关闭设置及退出时补充保存；启动在窗口创建前读取上一次值。实色降级不覆盖偏好。验证采用隔离状态，覆盖滑动条两端、实时效果、设置重开、主题切换、托盘恢复与配置加载。
 
 设置中的「Dock 应用排序」提供 `Fixed` 与 `Recent`，默认固定。`DockPreferencesStore` 原子写入 `dock-preferences.json`；`LauncherViewModel` 在创建时读取模式与最近记录，成功的主面板/Dock 启动统一更新记录，固定模式下也记录但不重排。最多保留 512 个 `LaunchKey`，只从当前已选应用生成最多 8 个 Dock 项，未使用项按主面板顺序补齐。验证通过返回成功/失败的启动替代函数拦截 Shell 启动，检查超出首 8 项进入 Dock、失败不更新、移除和保存恢复。
 
 对排序、取消拖动、搜索和持久化迁移等业务规则编写必要的测试。玻璃材质、焦点、多屏、系统拖入与窗口切换按 VALIDATION 人工复核。不得把编译成功记为视觉或系统集成验证通过。
 
 实验结果至少记录：Windows 构建、SDK、硬件/显示器缩放、步骤、预期、实际结果、证据、通过或失败，以及失败后的决策。
+
+桌面显示设置由 `DesktopIconVisibility` 读取和操作 Windows Explorer 图标视图，状态由系统保存，设置打开/激活时读取。`scripts/run.ps1 -Verify -DesktopIconTest` 额外执行实际桌面隐藏与恢复检查，在 `finally` 恢复初始状态。该模式不使用强制杀进程的 60 秒超时，避免在恢复前终止；普通 `-Verify` 只检查设置状态和可访问名称，不改用户桌面。
+
+`GlassEdge` 使用 WPF 几何差集绘制向内衰减的切面高光，外部圆角继续由原裁切控制。背景仍只经过单层 GaussianBlur，不采用 Transform2D 背景采样。启动阶段记录在本地 `startup.log`，不写入版本库。验证结束或异常时先隐藏测试背景与窗口，再清理合成资源，避免深色测试背景继续遮住桌面。
+
+最新报告见 [玻璃与桌面图标验证](evidence/2026-10-12-glass-and-desktop-icons.md)：142 项应用与桌面集成检查、133 项最终轻量 EXE 检查，以及普通启动/重复唤回检查均通过。
+
+## 文档截图
+
+首页和功能说明使用 `docs/screenshots/` 中的完整桌面实拍，保留真实壁纸、任务栏和面板/Dock 的相对位置。截图前启用 DPI 感知，按主屏原始像素尺寸捕获，避免 150% 缩放下只截到部分区域。用同一壁纸比较透明度；关闭无关窗口后截图，结束后恢复临时调整的外观与布局。记录拍摄日期、系统、分辨率、缩放与场景，见 [截图说明](screenshots/README.md)。
+
+圆角像素与控件检查的局部截图保存在 `docs/evidence/`，保留对应验证日期，不替代整张桌面的功能展示图。
 
 ## EXE 打包
 

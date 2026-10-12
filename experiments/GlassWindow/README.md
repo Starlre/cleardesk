@@ -39,6 +39,10 @@ Dock 位置与缩放比例保存在 `artifacts/GlassWindow/dock-layout.json`。�
 
 Dock 排序方式与最近使用记录保存在 `artifacts/GlassWindow/dock-preferences.json`。只记录从澄桌成功启动的入口，固定模式下也保留记录，最近模式下未使用项按主面板顺序补齐。切换排序不改变主面板顺序，历史不会恢复已移除的应用。
 
+设置提供「隐藏 Windows 桌面图标」开关，立即隐藏/恢复全部桌面图标，保留澄桌入口，不删除或移动文件。由 Windows 保存显示状态，退出澄桌不会自动恢复；设置打开或重新激活时读取实际状态。
+
+玻璃边缘使用向内渐变的切面高光，保持原有单层圆角。透明度同时调整底色和模糊，100% 接近清透玻璃；当前切面通过光影模拟，不扭曲背景图像。
+
 ## 自动验证
 
 ```powershell
@@ -48,5 +52,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 验证会短暂显示自有背景窗口、面板和 Dock，记录 Shell 图标、合成层、焦点、搜索、分页、排序/取消、重复导入与保存恢复，并截图后自动退出。四角检查会比较窗口显示和隐藏时的实际背景像素，并临时恢复矩形系统背景，确认能检测旧问题。输出在 `artifacts/GlassWindow/verification/`。
 
 需要检查真实鼠标事件链时运行 `scripts/run.ps1 -Verify -InputTest`。该模式会短暂在验证窗口内移动鼠标，检查释放排序、Escape 取消、Dock 移动与把手缩放，然后恢复鼠标位置；全部外部启动请求被拦截。普通 `-Verify` 不模拟鼠标输入。
+
+实际桌面图标集成检查使用 `scripts/run.ps1 -Verify -DesktopIconTest`，会短暂隐藏/恢复系统桌面图标，并在结束时恢复原状态。普通验证只读取当前状态。
 
 接口成功、截图生成与模型验证不能替代真实鼠标拖动、阴影比较、系统透明开关、动态背景、混合 DPI 和多屏人工验证。当前不支持 AppsFolder 虚拟入口、跨页拖动、自动隐藏、运行状态或独立 Dock 固定配置。

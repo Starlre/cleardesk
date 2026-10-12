@@ -23,6 +23,7 @@ internal sealed class ClippedBackdrop : IDisposable
     private readonly CompositionBackdropBrush _source;
     private readonly CompositionGeometricClip _clip;
     private bool _visible;
+    internal float BlurAmount { get; private set; } = 24;
     internal nint Handle => _hwnd;
 
     internal ClippedBackdrop(nint hwnd)
@@ -38,10 +39,10 @@ internal sealed class ClippedBackdrop : IDisposable
         _compositor = new Compositor();
         using var blur = new GaussianBlurEffect
         {
-            BlurAmount = 24, BorderMode = EffectBorderMode.Hard,
+            Name = "Frost", BlurAmount = 24, BorderMode = EffectBorderMode.Hard,
             Source = new CompositionEffectSourceParameter("Desktop")
         };
-        _factory = _compositor.CreateEffectFactory(blur);
+        _factory = _compositor.CreateEffectFactory(blur, ["Frost.BlurAmount"]);
         _brush = _factory.CreateBrush();
         _source = _compositor.CreateBackdropBrush();
         _brush.SetSourceParameter("Desktop", _source);
@@ -69,6 +70,7 @@ internal sealed class ClippedBackdrop : IDisposable
     {
         _visual.Size = _geometry.Size = new Vector2(width, height);
         _geometry.CornerRadius = new Vector2(radius);
+        SetTransparency((System.Windows.Application.Current as App)?.Transparency ?? 72);
         _visual.IsVisible = visible;
         if (!visible) { Hide(); return; }
         _visible = true;
@@ -87,6 +89,13 @@ internal sealed class ClippedBackdrop : IDisposable
     }
 
     internal void Hide() { _visible = false; ShowWindow(_hwnd, 0); }
+
+    internal void SetTransparency(double value)
+    {
+        float clarity = (float)Math.Clamp(value / 100, 0, 1);
+        BlurAmount = .35f + 32 * MathF.Pow(1 - clarity, .8f);
+        _brush.Properties.InsertScalar("Frost.BlurAmount", BlurAmount);
+    }
 
     public void Dispose()
     {

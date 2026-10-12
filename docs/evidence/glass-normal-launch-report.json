@@ -1,0 +1,9 @@
+﻿{
+    "Status":  "passed",
+    "ProcessId":  15684,
+    "Checks":  [
+                   "Normal launcher and Dock are visible with non-black screen content",
+                   "Normal settings opens and desktop icon toggle is present",
+                   "Repeated ordinary launch restores original instance"
+               ]
+}

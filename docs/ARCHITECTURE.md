@@ -16,6 +16,8 @@
 | `SurfaceWindow` / `ClippedBackdrop` | 非 layered 前景、独立合成模糊层、圆角与位置/显隐/层级同步 |
 | `SettingsWindow` / `AppearanceSettingsStore` | 实时透明度与保存、高级材质与诊断 |
 | `TrayIcon` | 原生托盘菜单、Explorer 重启通知、注册重试与资源清理 |
+| `DesktopIconVisibility` | 查询 Explorer 桌面图标视图，通过系统显示命令隐藏/恢复，不删除桌面文件 |
+| `GlassEdge` | WPF 内侧切面明暗渐变，不变换桌面采样，不改变窗口外轮廓 |
 
 ### 窗口与事件
 
@@ -37,6 +39,10 @@
 显示窗口前读取透明度和 Dock 布局；入口仅恢复手动选择，不自动采用扫描候选。旧 `state.json` 不迁移。配置原子写入，读取失败有默认值，保存失败有反馈。主题与材质仍为会话设置。
 
 `LauncherViewModel` 维护最多 512 条启动身份的最近顺序，成功启动后移到首位，失败不记录；固定模式下记录使用但不改变 Dock。最近模式从已选择入口中按记录排序，未使用项稳定按主面板顺序补齐。启动身份沿用 `LaunchKey`，同目标但参数或权限不同的入口保留独立记录。排序只影响 `DockEntries`，不改动面板顺序；历史不会自动将未选择或已移除的应用加入 Dock。
+
+桌面图标开关枚举 `Progman` 或其他顶层窗口下的 `SHELLDLL_DefView`，读取其 `SysListView32` 可见状态。只在状态需要改变时向 Explorer 发送 `WM_COMMAND / 0x7402`（显示桌面图标命令），由 Explorer 保存系统偏好。操作使用后台任务、超时与串行化，并重新读取实际结果；不隐藏壁纸宿主，不单独保存一份可能过期的 JSON 偏好。设置打开与重新激活时同步系统状态，退出应用不反转用户选择。
+
+玻璃仍使用单个 SpriteVisual 与圆角 geometric clip。GaussianBlur 的参数可更新，透明度 0%–100% 同时将底色 alpha 从 255 降到 0，将模糊强度约 32.35 降到 0.35。`GlassEdge` 在 WPF 前景内绘制向内衰减的切面光影，主面板、Dock 和图标池共用实现；此为光影近似，没有背景折射采样。变换桌面来源与环形合成的实验未发布，恢复稳定路线。
 
 ## 正式应用目标
 

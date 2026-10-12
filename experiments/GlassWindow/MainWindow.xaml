@@ -10,6 +10,7 @@
         <Border CornerRadius="32" BorderThickness="1" BorderBrush="{DynamicResource SurfaceEdge}" Background="{DynamicResource SurfaceTint}">
             <Grid>
             <Border CornerRadius="31" Background="{StaticResource GlassSheen}" IsHitTestVisible="False" />
+            <local:GlassEdge Radius="31" />
             <Grid x:Name="Root" Margin="32,20,32,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="42" /><RowDefinition Height="62" /><RowDefinition Height="*" /><RowDefinition Height="34" />

@@ -29,7 +29,7 @@ internal static class SmokeVerifier
         };
     }
 
-    internal static async Task RunAsync(MainWindow launcher, DockWindow dock, LauncherViewModel model, string output, bool inputTest)
+    internal static async Task RunAsync(MainWindow launcher, DockWindow dock, LauncherViewModel model, string output, bool inputTest, bool desktopIconTest)
     {
         Directory.CreateDirectory(output);
         File.Delete(Path.Combine(output, "error.txt"));
@@ -227,6 +227,7 @@ internal static class SmokeVerifier
         await DockVerifier.RunAsync(launcher, dock, model, output, Check);
         await AppearanceVerifier.RunAsync(launcher, dock, output, Check);
         await DockOrderingVerifier.RunAsync(launcher, model, output, Check);
+        await DesktopIconVerifier.RunAsync(launcher, dock, model, output, Check, desktopIconTest);
         if (inputTest) await VerifyPointerDragAsync(launcher, dock, model, checks);
 
         model.Status = $"{model.Entries.Count} 个入口";
@@ -281,7 +282,7 @@ internal static class SmokeVerifier
             Runtime = Environment.Version.ToString(), EntryCount = model.Entries.Count,
             PoolEntryCount = model.PoolEntries.Count, StartupPanelEntryCount = 0,
             MergedShortcutCount = model.PoolEntries.Sum(entry => entry.SourcePaths.Count - 1),
-            Checks = checks, InitialSurfaces = originalReports, PointerInputTest = inputTest,
+            Checks = checks, InitialSurfaces = originalReports, PointerInputTest = inputTest, DesktopIconTest = desktopIconTest,
             VisualVerification = "Screenshots captured; arbitrary background motion, external mouse drag, mixed DPI and shadows require manual review."
         }, new JsonSerializerOptions { WriteIndented = true }));
     }

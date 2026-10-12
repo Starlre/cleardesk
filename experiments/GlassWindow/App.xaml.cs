@@ -15,6 +15,7 @@ public partial class App : Application
     private string? _appearanceFile;
     private bool _appearanceDirty;
     private nint _previousForeground;
+    private Window? _verificationBackdrop;
     internal TrayIcon? Tray { get; private set; }
     internal bool IsExiting { get; private set; }
 
@@ -32,6 +33,12 @@ public partial class App : Application
         if (verify) _previousForeground = Native.GetForegroundWindow();
         string output = Option(e.Args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "artifacts", "GlassWindow");
         string stateRoot = Option(e.Args, "--state-root") ?? Path.Combine(Environment.CurrentDirectory, "artifacts", "GlassWindow");
+        void Stage(string stage)
+        {
+            try { Directory.CreateDirectory(output); File.WriteAllText(Path.Combine(output, "startup.log"), stage); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+        }
+        Stage("Acquiring instance");
         try
         {
             if (!verify)
@@ -44,12 +51,14 @@ public partial class App : Application
                 if (_instance is null) { ExitApplication(); return; }
             }
             _appearanceFile = verify ? null : Path.Combine(stateRoot, "appearance-settings.json");
+            Stage("Loading preferences");
             Transparency = AppearanceSettingsStore.Read(_appearanceFile).Transparency;
             // The old state.json contains an automatically populated catalog, not explicit choices.
             // Keep it untouched; panel-state.json stores only manually selected entries.
             var viewModel = new LauncherViewModel(verify ? null : Path.Combine(stateRoot, "panel-state.json"),
                 verify ? null : Path.Combine(stateRoot, "dock-preferences.json"));
             if (verify) viewModel.LaunchOverride = _ => true; // Verification must never launch external applications.
+            Stage("Creating windows");
             var launcher = new MainWindow(viewModel, _lifetime.Token) { ShowActivated = !verify };
             MainWindow = launcher;
             Dock = new DockWindow(launcher, viewModel, verify ? null : Path.Combine(stateRoot, "dock-layout.json"));
@@ -62,19 +71,23 @@ public partial class App : Application
             Dock.Top = Math.Min(work.Bottom - Dock.Height - 12, launcher.Top + launcher.Height + 20);
             Dock.RestoreLayout();
             Window? fixture = verify ? SmokeVerifier.CreateBackdrop(launcher, work) : null;
+            _verificationBackdrop = fixture;
             if (fixture is not null) launcher.Topmost = true; // Keep the fixture visible when the verifier hides UI for pixel comparison.
             fixture?.Show();
+            Stage("Showing launcher");
             launcher.Show(); Dock.Show();
+            Stage("Registering tray");
             Tray = new TrayIcon(launcher, ShowLauncher, HideToTray, () => ExitApplication(), verify);
             if (_pendingShow) { _pendingShow = false; ShowLauncher(); }
             if (fixture is not null)
                 Native.SetWindowPos(new System.Windows.Interop.WindowInteropHelper(fixture).Handle,
                     new System.Windows.Interop.WindowInteropHelper(launcher).Handle, 0, 0, 0, 0, 0x13);
             await viewModel.InitializeAsync(await CatalogService.LoadAsync(_lifetime.Token), _lifetime.Token);
+            Stage("Ready");
             if (!Tray.IsRegistered) viewModel.Status = "系统托盘暂时不可用，正在重试；请保留此窗口。";
             if (verify)
             {
-                await SmokeVerifier.RunAsync(launcher, Dock, viewModel, output, e.Args.Contains("--input-test"));
+                await SmokeVerifier.RunAsync(launcher, Dock, viewModel, output, e.Args.Contains("--input-test"), e.Args.Contains("--desktop-icon-test"));
                 RestoreForeground();
                 ((System.Windows.Controls.MenuItem)Tray.Menu.Items[3]).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
             }
@@ -109,7 +122,14 @@ public partial class App : Application
         if (MainWindow is MainWindow launcher) launcher.HidePanel();
         Dock.Hide();
     }
-    private void ExitApplication(int code = 0) { IsExiting = true; Shutdown(code); }
+    private void ExitApplication(int code = 0)
+    {
+        IsExiting = true;
+        // Remove verification overlays before releasing graphics resources, even after an exception.
+        _verificationBackdrop?.Hide();
+        foreach (var window in Windows.Cast<Window>().ToArray()) window.Hide();
+        Shutdown(code);
+    }
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e) { IsExiting = true; base.OnSessionEnding(e); }
     protected override void OnExit(ExitEventArgs e)
     {
@@ -136,6 +156,7 @@ public partial class App : Application
         bool solid = MainWindow is SurfaceWindow surface
             && (surface.Material == BackdropMode.Solid || surface.Report?.FallbackReason is not null);
         ApplyTheme(IsLightTheme, solid);
+        foreach (var window in Windows.OfType<SurfaceWindow>()) window.UpdateGlassTransparency(Transparency);
     }
 
     internal bool SaveAppearance()

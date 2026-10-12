@@ -12,11 +12,13 @@ public sealed class SettingsWindow : Window
     internal Slider TransparencySlider { get; }
     internal TextBlock TransparencyValue { get; }
     internal ComboBox DockSortSelector { get; }
+    internal CheckBox HideDesktopIconsToggle { get; }
+    internal Task DesktopIconChange { get; private set; } = Task.CompletedTask;
 
     public SettingsWindow(SurfaceWindow launcher, SurfaceWindow dock)
     {
         var app = (App)Application.Current;
-        Title = "澄桌 · 设置"; Width = 480; Height = Math.Min(580, SystemParameters.WorkArea.Height - 48); MinWidth = 400; MinHeight = 340;
+        Title = "澄桌 · 设置"; Width = 480; Height = Math.Min(700, SystemParameters.WorkArea.Height - 48); MinWidth = 400; MinHeight = 340;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = new SolidColorBrush(Color.FromRgb(245, 247, 250));
         Foreground = new SolidColorBrush(Color.FromRgb(24, 30, 40));
@@ -43,7 +45,7 @@ public sealed class SettingsWindow : Window
         ends.Children.Add(new TextBlock { Text = "更实色" }); root.Children.Add(ends);
         root.Children.Add(new TextBlock
         {
-            Text = "主面板与 Dock 同步调整，图标和文字保持清晰。\n下次启动沿用当前透明度。",
+            Text = "从实色到清透玻璃，同时调整底色和背景模糊。\n图标和文字保持清晰，下次启动沿用当前值。",
             TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 12, 0, 12)
         });
         var saveStatus = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap };
@@ -73,6 +75,54 @@ public sealed class SettingsWindow : Window
             UpdateSortHint();
         };
         UpdateSortHint();
+
+        HideDesktopIconsToggle = new CheckBox
+        {
+            Content = "隐藏 Windows 桌面图标", MinHeight = 32,
+            VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 20, 0, 0)
+        };
+        AutomationProperties.SetName(HideDesktopIconsToggle, "隐藏 Windows 桌面图标");
+        root.Children.Add(HideDesktopIconsToggle);
+        root.Children.Add(new TextBlock
+        {
+            Text = "隐藏桌面上的全部图标，保留澄桌面板和 Dock 图标。\n不会删除文件；关闭开关可恢复。退出澄桌后仍保持当前状态。",
+            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 8, 0, 8)
+        });
+        var desktopStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        root.Children.Add(desktopStatus);
+        bool syncingDesktop = false, changingDesktop = false;
+        void RefreshDesktop(DesktopIconState? result = null)
+        {
+            var state = result ?? DesktopIconVisibility.Read();
+            syncingDesktop = true;
+            HideDesktopIconsToggle.IsChecked = state.Available ? state.Hidden : null;
+            HideDesktopIconsToggle.IsEnabled = state.Available && !changingDesktop;
+            syncingDesktop = false;
+            desktopStatus.Foreground = state.Error is null ? Brushes.DimGray : Brushes.Firebrick;
+            desktopStatus.Text = state.Error ?? (state.Hidden ? "桌面图标已隐藏。" : "桌面图标当前可见。");
+        }
+        async Task ChangeDesktopAsync()
+        {
+            changingDesktop = true;
+            bool hidden = HideDesktopIconsToggle.IsChecked == true;
+            HideDesktopIconsToggle.IsEnabled = false;
+            desktopStatus.Foreground = Brushes.DimGray;
+            desktopStatus.Text = hidden ? "正在隐藏桌面图标…" : "正在恢复桌面图标…";
+            try { RefreshDesktop(await DesktopIconVisibility.SetHiddenAsync(hidden)); }
+            finally
+            {
+                changingDesktop = false;
+                HideDesktopIconsToggle.IsEnabled = DesktopIconVisibility.Read().Available;
+            }
+        }
+        void ToggleDesktop(object sender, RoutedEventArgs e)
+        {
+            if (!syncingDesktop && !changingDesktop) DesktopIconChange = ChangeDesktopAsync();
+        }
+        HideDesktopIconsToggle.Checked += ToggleDesktop;
+        HideDesktopIconsToggle.Unchecked += ToggleDesktop;
+        Activated += (_, _) => { if (!changingDesktop) RefreshDesktop(); };
+        RefreshDesktop();
 
         var advanced = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
         root.Children.Add(new Expander { Header = "高级选项", Content = advanced });
