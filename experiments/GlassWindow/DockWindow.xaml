@@ -3,12 +3,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ClearDesk.GlassWindow"
         Title="澄桌 Dock" Width="620" Height="88" WindowStyle="None" ResizeMode="NoResize"
-        Background="Transparent" AllowsTransparency="False" ShowInTaskbar="False" ShowActivated="False" Topmost="True">
-    <Border CornerRadius="40" Background="{DynamicResource SurfaceTint}" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1">
+        Background="Transparent" AllowsTransparency="False" ShowInTaskbar="False" ShowActivated="False" Topmost="True"
+        PreviewMouseLeftButtonDown="OnDockPointerDown" PreviewMouseMove="OnDockPointerMove" PreviewMouseLeftButtonUp="OnDockPointerUp"
+        PreviewMouseWheel="OnDockWheel">
+    <Window.ContextMenu>
+        <ContextMenu Opened="OnMenuOpened">
+            <MenuItem x:Name="ScaleInfo" Header="尺寸：100%" IsEnabled="False" />
+            <MenuItem x:Name="ZoomInItem" Header="放大" Click="OnZoomIn" />
+            <MenuItem x:Name="ZoomOutItem" Header="缩小" Click="OnZoomOut" />
+            <MenuItem Header="恢复默认大小" Click="OnResetScale" />
+            <Separator />
+            <MenuItem Header="移动到左下角" Click="OnMoveLeft" />
+            <MenuItem Header="移动到底部中央" Click="OnMoveCenter" />
+            <MenuItem Header="移动到右下角" Click="OnMoveRight" />
+        </ContextMenu>
+    </Window.ContextMenu>
+    <Grid>
+    <Viewbox Stretch="Fill">
+    <Border Width="620" Height="88" CornerRadius="40" Background="{DynamicResource SurfaceTint}" BorderBrush="{DynamicResource SurfaceEdge}" BorderThickness="1"
+            ToolTip="拖动空白区域移动；拖动右侧把手调节大小，也可使用 Ctrl + 滚轮">
         <Grid>
         <Border CornerRadius="39" Background="{StaticResource GlassSheen}" IsHitTestVisible="False" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="14,12">
-            <Button Style="{StaticResource QuietButton}" Background="Transparent" BorderBrush="Transparent" Padding="10" Click="OnToggleLauncher" ToolTip="打开应用面板" AutomationProperties.Name="打开应用面板">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="14,12">
+            <Button x:Name="ToggleLauncherButton" Style="{StaticResource QuietButton}" Background="Transparent" BorderBrush="Transparent" Padding="10" Click="OnToggleLauncher" ToolTip="单击打开或隐藏面板，按住拖动移动 Dock" AutomationProperties.Name="打开应用面板" AutomationProperties.HelpText="单击切换应用面板，按住拖动可移动 Dock">
                 <Path Data="M0,0H6V6H0Z M10,0H16V6H10Z M20,0H26V6H20Z M0,10H6V16H0Z M10,10H16V16H10Z M20,10H26V16H20Z M0,20H6V26H0Z M10,20H16V26H10Z M20,20H26V26H20Z"
                       Fill="{DynamicResource TextBrush}" Width="26" Height="26" />
             </Button>
@@ -24,4 +41,17 @@
         </StackPanel>
         </Grid>
     </Border>
+    </Viewbox>
+    <Thumb x:Name="ResizeGrip" HorizontalAlignment="Right" VerticalAlignment="Center" Width="24" Height="40" Margin="0,0,8,0"
+           Cursor="SizeWE" ToolTip="向右拖动放大，向左拖动缩小" AutomationProperties.Name="调整 Dock 大小"
+           DragStarted="OnResizeStarted" DragDelta="OnResizeDelta" DragCompleted="OnResizeCompleted">
+        <Thumb.Template>
+            <ControlTemplate TargetType="Thumb">
+                <Border Background="Transparent">
+                    <Path Data="M8,14 L8,26 M12,10 L12,30 M16,14 L16,26" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5" />
+                </Border>
+            </ControlTemplate>
+        </Thumb.Template>
+    </Thumb>
+    </Grid>
 </local:SurfaceWindow>

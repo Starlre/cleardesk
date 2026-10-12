@@ -1,15 +1,16 @@
 # 开发文档索引
 
-文档基线：2026-10-11。项目工作名：澄桌（ClearDesk）。
+更新日期：2026-10-12。项目名称：澄桌（ClearDesk）。
 
 ## 阅读顺序
 
-1. [PRODUCT.md](PRODUCT.md)：理解产品范围和交互。
-2. [ARCHITECTURE.md](ARCHITECTURE.md)：理解模块职责与技术边界。
-3. [DEVELOPMENT.md](DEVELOPMENT.md)：准备本机环境和开发流程。
-4. [VALIDATION.md](VALIDATION.md)：执行首轮技术验证。
-5. [ROADMAP.md](ROADMAP.md)：更新任务进度和阶段验收。
-6. [首轮验证结果](evidence/2026-10-11-glass-window.md)：查看当前原型的检查结果和窗口截图。
+1. [FEATURES.md](FEATURES.md)：了解当前软件功能、使用方法和限制。
+2. [PRODUCT.md](PRODUCT.md)：理解产品范围和交互。
+3. [ARCHITECTURE.md](ARCHITECTURE.md)：理解当前实现和正式模块目标。
+4. [DEVELOPMENT.md](DEVELOPMENT.md)：准备本机环境和开发流程。
+5. [VALIDATION.md](VALIDATION.md)：查看已验证与待验收场景。
+6. [ROADMAP.md](ROADMAP.md)：更新任务进度和阶段验收。
+7. [最新启动与最小化验证](evidence/2026-10-12-startup-and-minimize.md)：查看重复启动、托盘和最小化行为。
 
 [decisions/0001-platform-and-stack.md](decisions/0001-platform-and-stack.md) 记录初始选型。后续重大技术调整使用新的 ADR 记录原因、结果与影响。
 

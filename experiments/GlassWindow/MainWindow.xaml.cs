@@ -1,4 +1,3 @@
-using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -19,15 +18,31 @@ public partial class MainWindow : SurfaceWindow
     private Point _start;
     private DragImageAdorner? _adorner;
     private AdornerLayer? _adornerLayer;
-    private DiagnosticsWindow? _diagnostics;
+    private SettingsWindow? _settings;
+    internal SettingsWindow? Settings => _settings;
+    internal IconPoolWindow? IconPool { get; private set; }
 
     public MainWindow(LauncherViewModel viewModel, CancellationToken token)
     {
         _viewModel = viewModel; _token = token;
-        viewModel.EscapeCommand = new RelayCommand(() => { if (_draggedEntry is not null) EndDrag(false); else Hide(); });
+        viewModel.EscapeCommand = new RelayCommand(() => { if (_draggedEntry is not null) EndDrag(false); else ((App)Application.Current).HideToTray(); });
         InitializeComponent();
         DataContext = viewModel;
         SetResourceReference(ForegroundProperty, "TextBrush");
+        StateChanged += (_, _) =>
+        {
+            SyncIconPoolVisibility();
+            if (WindowState == WindowState.Minimized) Dispatcher.BeginInvoke(() =>
+            {
+                if (WindowState == WindowState.Minimized) HidePanel();
+            });
+        };
+        IsVisibleChanged += (_, _) => SyncIconPoolVisibility();
+        Closing += (_, e) =>
+        {
+            var app = (App)Application.Current;
+            if (!app.IsExiting) { e.Cancel = true; app.HideToTray(); }
+        };
         PreviewMouseMove += OnPointerMove;
         PreviewMouseLeftButtonUp += OnPointerUp;
         LostMouseCapture += (_, e) =>
@@ -52,43 +67,76 @@ public partial class MainWindow : SurfaceWindow
         var container = (UIElement)Tiles.ItemContainerGenerator.ContainerFromIndex(index);
         return container.PointToScreen(new Point(container.RenderSize.Width / 2, container.RenderSize.Height / 2));
     }
-    private void OnClose(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+    private void OnClose(object sender, RoutedEventArgs e) => ((App)Application.Current).HideToTray();
+    private void OnMinimize(object sender, RoutedEventArgs e) => HidePanel();
+    internal void HidePanel() { EndDrag(false); Hide(); }
     private void OnHeaderDrag(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is DependencyObject source && FindParent<Button>(source) is not null) return;
         if (e.LeftButton == MouseButtonState.Pressed) { EndDrag(false); DragMove(); }
     }
-    private void OnDiagnostics(object sender, RoutedEventArgs e)
+    private void OnSettings(object sender, RoutedEventArgs e)
     {
-        if (_diagnostics is null)
+        if (_settings is null)
         {
-            _diagnostics = new DiagnosticsWindow(this, ((App)Application.Current).Dock) { Owner = this };
-            _diagnostics.Closed += (_, _) => _diagnostics = null;
-            _diagnostics.Show();
+            _settings = new SettingsWindow(this, ((App)Application.Current).Dock) { Owner = this, Topmost = Topmost };
+            _settings.Closed += (_, _) => _settings = null;
+            _settings.Show();
         }
-        else _diagnostics.Activate();
+        else { _settings.Show(); _settings.Activate(); }
     }
-    private async void OnAdd(object sender, RoutedEventArgs e)
+    private void OnAdd(object sender, RoutedEventArgs e) => OpenIconPool();
+    private void SyncIconPoolVisibility()
     {
-        var dialog = new OpenFileDialog { Title = "添加启动入口", Multiselect = true, DereferenceLinks = false,
-            Filter = "应用与快捷方式|*.lnk;*.url;*.exe|所有文件|*.*" };
-        if (dialog.ShowDialog(this) == true) await ImportAsync(dialog.FileNames);
+        if (_settings is not null)
+        {
+            if (IsVisible && WindowState != WindowState.Minimized) _settings.Show();
+            else _settings.Hide();
+        }
+        if (IconPool is null) return;
+        if (IsVisible && WindowState != WindowState.Minimized)
+        {
+            if (!IconPool.IsVisible) IconPool.Show();
+        }
+        else IconPool.Hide();
+    }
+    private void OpenIconPool()
+    {
+        if (IconPool is null)
+        {
+            IconPool = new IconPoolWindow(_viewModel, _token) { Owner = this, Topmost = Topmost };
+            IconPool.Closed += (_, _) => IconPool = null;
+            IconPool.Show();
+        }
+        else { IconPool.Model.Refresh(); IconPool.Activate(); }
     }
     private void OnExternalDragOver(object sender, DragEventArgs e)
-    { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }
+    { e.Effects = _viewModel.IsCatalogReady && e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }
     private async void OnExternalDrop(object sender, DragEventArgs e)
     {
         e.Handled = true;
+        if (!_viewModel.IsCatalogReady) return;
         if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) await ImportAsync(paths);
     }
     private async Task ImportAsync(IEnumerable<string> paths)
     {
-        try { _viewModel.Add(await CatalogService.ImportAsync(paths, _token)); }
+        try
+        {
+            var entries = await CatalogService.ImportAsync(paths, _token);
+            _viewModel.UpdatePool(entries);
+            OpenIconPool();
+            IconPool?.Model.SelectEntries(entries);
+        }
         catch (OperationCanceledException) { }
         catch (Exception exception) { _viewModel.Status = $"导入失败：{exception.Message}"; }
     }
     private void OnMoveEarlier(object sender, RoutedEventArgs e) => MoveFromMenu(sender, -1);
     private void OnMoveLater(object sender, RoutedEventArgs e) => MoveFromMenu(sender, 1);
+    private void OnRemove(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Parent: ContextMenu { PlacementTarget: Button { DataContext: EntryViewModel entry } } })
+        { _viewModel.Remove(entry); IconPool?.Model.Refresh(); }
+    }
     private void MoveFromMenu(object sender, int direction)
     {
         if (sender is MenuItem { Parent: ContextMenu { PlacementTarget: Button { DataContext: EntryViewModel entry } } })

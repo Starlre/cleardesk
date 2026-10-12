@@ -35,10 +35,14 @@ public sealed class LauncherViewModel : ObservableObject
     public const int PageSize = 28;
     private readonly string? _stateFile;
     private readonly List<EntryViewModel> _entries = [];
+    private IReadOnlyList<CatalogEntry> _poolEntries = [];
     private string _searchText = "";
     private string _status = "正在读取应用…";
     private int _page;
     public IReadOnlyList<EntryViewModel> Entries => _entries;
+    public IReadOnlyList<CatalogEntry> PoolEntries => _poolEntries;
+    public bool IsCatalogReady { get; private set; }
+    public string EmptyMessage => _entries.Count == 0 ? "点击右上角「添加」，从图标池选择应用" : "没有匹配的应用";
     public ObservableCollection<EntryViewModel> VisibleEntries { get; } = [];
     public ObservableCollection<EntryViewModel> DockEntries { get; } = [];
     public string SearchText { get => _searchText; set { _searchText = value; _page = 0; Refresh(); Changed(); } }
@@ -56,6 +60,41 @@ public sealed class LauncherViewModel : ObservableObject
         _stateFile = stateFile;
         PreviousPageCommand = new RelayCommand(() => { _page--; Refresh(); }, () => _page > 0);
         NextPageCommand = new RelayCommand(() => { _page++; Refresh(); }, () => _page + 1 < PageCount);
+    }
+
+    public async Task InitializeAsync(IReadOnlyList<CatalogEntry> catalog, CancellationToken token = default)
+    {
+        UpdatePool(catalog);
+        var selected = new List<CatalogEntry>();
+        bool failed = false;
+        if (_stateFile is not null && File.Exists(_stateFile))
+        {
+            try
+            {
+                var paths = JsonSerializer.Deserialize<string[]>(await File.ReadAllTextAsync(_stateFile, token)) ?? [];
+                var byPath = _poolEntries.SelectMany(entry => entry.SourcePaths.Select(path => (path, entry)))
+                    .GroupBy(pair => pair.path, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.First().entry, StringComparer.OrdinalIgnoreCase);
+                var imported = await CatalogService.ImportAsync(paths.Where(path => !byPath.ContainsKey(path)), token);
+                foreach (var entry in imported)
+                    foreach (string path in entry.SourcePaths) byPath.TryAdd(path, entry);
+                foreach (string path in paths)
+                    if (byPath.TryGetValue(path, out var entry)) selected.Add(entry);
+                UpdatePool(imported);
+            }
+            catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
+            { failed = true; }
+        }
+        Load(selected);
+        IsCatalogReady = true;
+        Changed(nameof(IsCatalogReady));
+        if (failed) Status = "已添加应用无法读取，请从图标池重新选择";
+    }
+
+    public void UpdatePool(IReadOnlyList<CatalogEntry> entries)
+    {
+        _poolEntries = CatalogService.MergeDuplicates(_poolEntries.Concat(entries));
+        Changed(nameof(PoolEntries));
     }
 
     public void Load(IReadOnlyList<CatalogEntry> entries)
@@ -84,6 +123,7 @@ public sealed class LauncherViewModel : ObservableObject
 
     public int Add(IReadOnlyList<CatalogEntry> entries)
     {
+        UpdatePool(entries);
         int added = 0;
         foreach (var entry in entries)
         {
@@ -94,6 +134,13 @@ public sealed class LauncherViewModel : ObservableObject
         Refresh(); RefreshDock();
         if (Save()) Status = added > 0 ? $"已添加 {added} 个入口" : "这些入口已经存在";
         return added;
+    }
+
+    public void Remove(EntryViewModel entry)
+    {
+        if (!_entries.Remove(entry)) return;
+        Refresh(); RefreshDock();
+        if (Save()) Status = $"已从面板移除 {entry.Name}";
     }
 
     public bool MoveVisible(EntryViewModel entry, int target)
@@ -127,7 +174,7 @@ public sealed class LauncherViewModel : ObservableObject
         _page = Math.Clamp(_page, 0, PageCount - 1);
         VisibleEntries.Clear();
         foreach (var entry in Filtered().Skip(_page * PageSize).Take(PageSize)) VisibleEntries.Add(entry);
-        Changed(nameof(PageLabel)); CommandManager.InvalidateRequerySuggested();
+        Changed(nameof(PageLabel)); Changed(nameof(EmptyMessage)); CommandManager.InvalidateRequerySuggested();
     }
     private void RefreshDock()
     {

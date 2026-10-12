@@ -38,7 +38,7 @@ public static class CatalogService
         var entries = MergeDuplicates(paths.Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(Path.GetFileNameWithoutExtension, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .Select(path => { token.ThrowIfCancellationRequested(); return Create(path); })).Take(196).ToList();
+            .Select(path => { token.ThrowIfCancellationRequested(); return Create(path); })).ToList();
         if (entries.Count == 0)
         {
             foreach (var name in new[] { "notepad.exe", "explorer.exe", "calc.exe" })

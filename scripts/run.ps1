@@ -5,7 +5,18 @@ param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release'
 )
 . (Join-Path $PSScriptRoot 'common.ps1')
-if (-not $NoBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration }
+$taskRunning = $false
+if (-not $Verify) {
+    $taskIdentity = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $taskSession = [Diagnostics.Process]::GetCurrentProcess().SessionId
+    try {
+        $taskGate = [Threading.Mutex]::OpenExisting("Local\ClearDesk-$taskIdentity-$taskSession")
+        $taskGate.Dispose()
+        $taskRunning = $true
+    }
+    catch [Threading.WaitHandleCannotBeOpenedException] { }
+}
+if (-not $NoBuild -and -not $taskRunning) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration }
 if ($InputTest -and -not $Verify) { throw '-InputTest requires -Verify.' }
 $taskApp = Join-Path $script:ClearDeskRoot "experiments/GlassWindow/bin/x64/$Configuration/net10.0-windows10.0.22621.0/ClearDesk.GlassWindow.exe"
 if (-not (Test-Path -LiteralPath $taskApp)) { throw 'Application output is missing. Run scripts/build.ps1 first.' }
@@ -30,5 +41,10 @@ if ($Verify) {
 }
 else {
     $taskProcess = Start-Process -FilePath $taskApp -ArgumentList $taskArguments -WorkingDirectory $script:ClearDeskRoot -WindowStyle Normal -PassThru
-    Write-Output "ClearDesk started (PID $($taskProcess.Id)). Escape hides the launcher; its close button exits both windows."
+    if ($taskRunning) {
+        if (-not $taskProcess.WaitForExit(5000)) { throw 'Existing-instance restore request did not complete within 5 seconds.' }
+        if ($taskProcess.ExitCode -ne 0) { throw 'Existing-instance restore request failed.' }
+        Write-Output 'ClearDesk is already running; restored its windows without rebuilding or creating another tray icon.'
+    }
+    else { Write-Output "ClearDesk started (PID $($taskProcess.Id)). Close hides to the tray; use the tray menu to exit." }
 }

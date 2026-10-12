@@ -50,8 +50,11 @@ internal sealed class ClippedBackdrop : IDisposable
         _visual.Brush = _brush;
         _clip = _compositor.CreateGeometricClip(_geometry);
         _visual.Clip = _clip;
+        // An owned picker and its backdrop must share an owner. Otherwise Windows
+        // can place the main window between picker UI and glass when restoring it.
+        nint windowOwner = Native.GetWindow(hwnd, 4); // GW_OWNER
         _hwnd = CreateWindowEx(0x082000A0, "STATIC", "澄桌 clipped backdrop", 0x80000000,
-            0, 0, 1, 1, 0, 0, 0, 0); // No redirection bitmap, no activation/taskbar, transparent to input.
+            0, 0, 1, 1, windowOwner, 0, 0, 0); // No redirection bitmap, no activation/taskbar, transparent to input.
         if (_hwnd == 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         var interop = _compositor.As<ICompositorDesktopInterop>();
         Marshal.ThrowExceptionForHR(interop.CreateDesktopWindowTarget(_hwnd, false, out var pointer));

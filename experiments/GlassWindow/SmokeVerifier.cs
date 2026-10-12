@@ -56,12 +56,85 @@ internal static class SmokeVerifier
                     && !Native.PtInRegion(region, width - 1 - cutout, height - 1 - cutout)
                     && Native.PtInRegion(region, inside, inside)
                     && Native.PtInRegion(region, width / 2, height / 2),
-                    $"{window.Title}: four cutouts match {window.SurfaceRadius} DIP arc {stage}");
+                    $"{window.Title}: four cutouts match {window.SurfaceRadius} DIP arc {stage}; bounds={width}x{height}, radius={radius}, probes={Native.PtInRegion(region, cutout, cutout)}/{Native.PtInRegion(region, width - 1 - cutout, cutout)}/{Native.PtInRegion(region, cutout, height - 1 - cutout)}/{Native.PtInRegion(region, width - 1 - cutout, height - 1 - cutout)}/{Native.PtInRegion(region, inside, inside)}/{Native.PtInRegion(region, width / 2, height / 2)}");
             }
             finally { if (region != 0) Native.DeleteObject(region); }
         }
 
         await CatalogVerifier.RunAsync(output, Check);
+        await PanelVerifier.RunAsync(output, Check);
+        await SingleInstanceVerifier.RunAsync(Check);
+        var app = (App)Application.Current;
+        var tray = app.Tray!;
+        Check(tray.IsRegistered && tray.TryGetBounds(out var trayBounds) && trayBounds.Right > trayBounds.Left,
+            "Shell confirms ClearDesk tray icon is registered in notification area");
+        Check(!launcher.ShowInTaskbar && !dock.ShowInTaskbar
+            && (Native.GetWindowExStyle(new WindowInteropHelper(launcher).Handle) & 0x40000) == 0,
+            "Launcher and Dock do not advertise a taskbar button");
+        Native.SendMessage(new WindowInteropHelper(launcher).Handle, TrayIcon.CallbackMessage, 0, (nint)0x7B);
+        await Task.Delay(150);
+        Check(tray.Menu.IsOpen && tray.Menu.Items.Count == 4, "Tray right-click opens menu with show, hide and exit actions");
+        tray.Menu.IsOpen = false;
+        ((System.Windows.Controls.MenuItem)tray.Menu.Items[1]).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+        Check(!launcher.IsVisible && !dock.IsVisible && tray.IsRegistered,
+            "Tray hide command hides all windows while application stays resident");
+        Native.SendMessage(new WindowInteropHelper(launcher).Handle, TrayIcon.CallbackMessage, 0, (nint)0x400);
+        await Task.Delay(150);
+        Check(launcher.IsVisible && dock.IsVisible && !launcher.ShowInTaskbar, "Tray click restores panel and Dock without taskbar entry");
+        launcher.Close();
+        Check(!launcher.IsVisible && !dock.IsVisible && tray.IsRegistered, "Window close is cancelled and hides to tray instead of exiting");
+        ((System.Windows.Controls.MenuItem)tray.Menu.Items[0]).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+        Check(launcher.IsVisible && dock.IsVisible, "Tray show command restores windows after close-to-tray");
+        Check(model.IsCatalogReady && model.Entries.Count == 0 && model.DockEntries.Count == 0 && model.PoolEntries.Count >= 35,
+            "Startup scans real icons into pool while main panel and Dock contain no applications");
+        launcher.Activate();
+        await Task.Delay(300);
+        Capture(launcher, Path.Combine(output, "launcher-empty.png"));
+        Capture(dock, Path.Combine(output, "dock-empty.png"));
+        ((System.Windows.Controls.Button)launcher.FindName("AddButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Task.Delay(250);
+        var cancelledPool = launcher.IconPool!;
+        cancelledPool.Model.SelectEntries(model.PoolEntries.Take(1).ToArray());
+        cancelledPool.Close();
+        Check(model.Entries.Count == 0, "Closing pool with unconfirmed selection leaves panel empty");
+        ((System.Windows.Controls.Button)launcher.FindName("AddButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Task.Delay(250);
+        var iconPool = launcher.IconPool!;
+        var checkbox = FindVisual<System.Windows.Controls.CheckBox>(iconPool)!;
+        var toggle = (System.Windows.Automation.Provider.IToggleProvider)new System.Windows.Automation.Peers.CheckBoxAutomationPeer(checkbox)
+            .GetPattern(System.Windows.Automation.Peers.PatternInterface.Toggle);
+        toggle.Toggle();
+        Check(iconPool.Model.SelectedCount == 1 && model.Entries.Count == 0, "Accessible checkbox toggle updates pool selection without launching or adding");
+        launcher.WindowState = WindowState.Minimized;
+        await Task.Delay(200);
+        Check(!iconPool.IsVisible && !Native.IsWindowVisible((nint)iconPool.Report!.BackdropHandle),
+            "Minimizing main panel also hides open pool and its glass backdrop");
+        app.ShowLauncher();
+        await Task.Delay(200);
+        Check(iconPool.IsVisible && iconPool.Model.SelectedCount == 1 && Native.IsWindowVisible((nint)iconPool.Report!.BackdropHandle),
+            "Restoring main panel restores open pool and unconfirmed choices");
+        launcher.Hide();
+        await Task.Delay(150);
+        Check(!iconPool.IsVisible && !Native.IsWindowVisible((nint)iconPool.Report!.BackdropHandle),
+            "Hiding main panel hides open pool and glass together");
+        launcher.Show();
+        await Task.Delay(150);
+        toggle.Toggle();
+        iconPool.Model.SelectEntries(model.PoolEntries.Take(35).ToArray());
+        Check(iconPool.Model.CanAdd && iconPool.Model.SelectedCount == 35 && model.Entries.Count == 0,
+            "Pool supports multiple selections without adding until confirmation");
+        await Task.Delay(250);
+        iconPool.Activate();
+        await Task.Delay(150);
+        Check(Native.GetWindow(new WindowInteropHelper(iconPool).Handle, 2) == (nint)iconPool.Report!.BackdropHandle,
+            "After restoring owner, pool glass stays directly behind its UI above main panel");
+        Check(FindVisual<System.Windows.Controls.CheckBox>(iconPool)!.IsChecked == true
+            && ((System.Windows.Controls.Button)iconPool.FindName("AddSelectedButton")).IsEnabled,
+            "Pool selection bindings show checked icons and enable confirmation button");
+        Capture(iconPool, Path.Combine(output, "icon-pool.png"));
+        ((System.Windows.Controls.Button)iconPool.FindName("AddSelectedButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Check(launcher.IconPool is null && model.Entries.Count == 35 && model.DockEntries.Count == 8,
+            "Add-to-panel button adds selected pool icons and closes picker");
         Check(model.Entries.Count >= 3, "Real Shell entries loaded");
         Check(model.Entries.Select(entry => entry.Entry.LaunchKey).Distinct(StringComparer.Ordinal).Count() == model.Entries.Count,
             "Real catalog contains no duplicate launch identities");
@@ -79,9 +152,32 @@ internal static class SmokeVerifier
         dock.Show();
         Check(Native.GetForegroundWindow() == foreground, "Showing Dock preserves foreground window");
         model.EscapeCommand.Execute(null);
-        Check(!launcher.IsVisible && dock.IsVisible, "Escape hides only launcher and preserves Dock");
+        Check(!launcher.IsVisible && !dock.IsVisible, "Escape hides launcher and Dock together");
         Check(!Native.IsWindowVisible((nint)launcher.Report!.BackdropHandle), "Hiding launcher also hides its backing visual window");
-        launcher.Show();
+        app.ShowLauncher();
+        var beforeMinimize = model.SnapshotOrder();
+        Native.GetWindowRect(new WindowInteropHelper(launcher).Handle, out var beforeMinimizeBounds);
+        ((System.Windows.Controls.Button)launcher.FindName("MinimizeButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Task.Delay(250);
+        Check(!launcher.IsVisible && dock.IsVisible && tray.IsRegistered
+            && !Native.IsWindowVisible((nint)launcher.Report!.BackdropHandle)
+            && Native.IsWindowVisible((nint)dock.Report!.BackdropHandle),
+            "Minimize button hides only launcher and its glass while Dock remains visible");
+        ((System.Windows.Controls.Button)dock.FindName("ToggleLauncherButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Task.Delay(250);
+        Native.GetWindowRect(new WindowInteropHelper(launcher).Handle, out var restoredBounds);
+        Check(launcher.IsVisible && dock.IsVisible && launcher.WindowState == WindowState.Normal
+            && Native.IsWindowVisible((nint)launcher.Report!.BackdropHandle)
+            && restoredBounds.Equals(beforeMinimizeBounds) && model.Entries.SequenceEqual(beforeMinimize),
+            "Dock button restores minimized launcher with glass, original bounds and unchanged entry order");
+        launcher.WindowState = WindowState.Minimized;
+        await Task.Delay(150);
+        Check(!launcher.IsVisible && dock.IsVisible && Native.IsWindowVisible((nint)dock.Report!.BackdropHandle),
+            "Native minimization keeps Dock and its glass visible");
+        ((System.Windows.Controls.Button)dock.FindName("ToggleLauncherButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Task.Delay(250);
+        Check(launcher.IsVisible && dock.IsVisible && Native.IsWindowVisible((nint)launcher.Report!.BackdropHandle),
+            "Dock restores windows after native minimization without taskbar interaction");
         double previousLeft = launcher.Left, previousTop = launcher.Top;
         launcher.Left += 8; launcher.Top += 8;
         await Task.Delay(150);
@@ -128,7 +224,9 @@ internal static class SmokeVerifier
         unwritable.Add([original[0].Entry]);
         Check(unwritable.Status.Contains("保存失败"), "Save failure feedback is preserved after import");
         File.Delete(output + ".tmp");
-        if (inputTest) await VerifyPointerDragAsync(launcher, model, checks);
+        await DockVerifier.RunAsync(launcher, dock, model, output, Check);
+        await AppearanceVerifier.RunAsync(launcher, dock, output, Check);
+        if (inputTest) await VerifyPointerDragAsync(launcher, dock, model, checks);
 
         model.Status = $"{model.Entries.Count} 个入口";
         launcher.Activate();
@@ -172,20 +270,37 @@ internal static class SmokeVerifier
         CheckContour(launcher, "in solid fallback");
         await VerifyTransparentCornersAsync(launcher, output, "solid", checks);
         Capture(launcher, Path.Combine(output, "launcher-solid.png"));
+        tray.Dispose();
+        Check(!tray.IsRegistered && !tray.TryGetBounds(out _), "Disposing tray removes actual Shell notification icon");
+        tray.Dispose();
+        Check(!tray.IsRegistered, "Repeated tray disposal is safe");
         await File.WriteAllTextAsync(Path.Combine(output, "smoke-report.json"), JsonSerializer.Serialize(new
         {
             Status = "passed", OsVersion = Environment.OSVersion.Version.ToString(),
             Runtime = Environment.Version.ToString(), EntryCount = model.Entries.Count,
-            MergedShortcutCount = model.Entries.Sum(entry => entry.Entry.SourcePaths.Count - 1),
+            PoolEntryCount = model.PoolEntries.Count, StartupPanelEntryCount = 0,
+            MergedShortcutCount = model.PoolEntries.Sum(entry => entry.SourcePaths.Count - 1),
             Checks = checks, InitialSurfaces = originalReports, PointerInputTest = inputTest,
             VisualVerification = "Screenshots captured; arbitrary background motion, external mouse drag, mixed DPI and shadows require manual review."
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    private static async Task VerifyPointerDragAsync(MainWindow launcher, LauncherViewModel model, List<string> checks)
+    private static T? FindVisual<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match) return match;
+            if (FindVisual<T>(child) is { } nested) return nested;
+        }
+        return null;
+    }
+
+    private static async Task VerifyPointerDragAsync(MainWindow launcher, DockWindow dock, LauncherViewModel model, List<string> checks)
     {
         Native.GetCursorPos(out var previous);
         var original = model.SnapshotOrder();
+        double dockLeft = dock.Left, dockTop = dock.Top, dockScale = dock.DockScale;
         int launchAttempts = 0;
         model.LaunchOverride = _ => launchAttempts++;
         void Button(uint flags)
@@ -224,6 +339,59 @@ internal static class SmokeVerifier
             if (!model.Entries.SequenceEqual(original) || !launcher.IsVisible || launchAttempts != 0)
                 throw new InvalidOperationException("Escape failed to cancel real pointer drag.");
             checks.Add("Escape cancels injected pointer drag and keeps launcher visible");
+            nint foreground = Native.GetForegroundWindow();
+            Point dockStart = dock.PointToScreen(new Point(dock.Width / 2, 6 * dock.DockScale));
+            Native.SetCursorPos((int)dockStart.X, (int)dockStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80); await Move(dockStart, new Point(dockStart.X + 42, dockStart.Y - 30));
+            Button(0x4); await Task.Delay(200);
+            if (Math.Abs(dock.Left - dockLeft) < 5 || Math.Abs(dock.Top - dockTop) < 5
+                || Native.GetForegroundWindow() != foreground || launchAttempts != 0)
+                throw new InvalidOperationException("Dock pointer drag did not move without activating or launching.");
+            checks.Add("Injected Dock drag moves window without stealing foreground or launching icons");
+            var grip = (System.Windows.Controls.Primitives.Thumb)dock.FindName("ResizeGrip");
+            Point gripStart = grip.PointToScreen(new Point(grip.ActualWidth / 2, grip.ActualHeight / 2));
+            Native.SetCursorPos((int)gripStart.X, (int)gripStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80); await Move(gripStart, new Point(gripStart.X + 72, gripStart.Y));
+            Button(0x4); await Task.Delay(200);
+            if (dock.DockScale <= dockScale || Native.GetForegroundWindow() != foreground || launchAttempts != 0)
+                throw new InvalidOperationException("Dock pointer resize did not scale without activating or launching.");
+            checks.Add("Injected Dock resize grip scales window and icons without activation or launch");
+            double enlargedScale = dock.DockScale;
+            gripStart = grip.PointToScreen(new Point(grip.ActualWidth / 2, grip.ActualHeight / 2));
+            Native.SetCursorPos((int)gripStart.X, (int)gripStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80); await Move(gripStart, new Point(gripStart.X - 72, gripStart.Y));
+            Button(0x4); await Task.Delay(200);
+            if (dock.DockScale >= enlargedScale || Math.Abs(dock.DockScale - dockScale) > 0.01
+                || Native.GetForegroundWindow() != foreground || launchAttempts != 0)
+                throw new InvalidOperationException("Dock pointer shrink did not return to original scale without activation or launch.");
+            checks.Add("Injected Dock resize grip shrinks back to original size without activation or launch");
+            var toggle = (System.Windows.Controls.Button)dock.FindName("ToggleLauncherButton");
+            Point ToggleCenter() => toggle.PointToScreen(new Point(toggle.ActualWidth / 2, toggle.ActualHeight / 2));
+            double beforeButtonLeft = dock.Left, beforeButtonTop = dock.Top;
+            Point toggleStart = ToggleCenter();
+            Native.SetCursorPos((int)toggleStart.X, (int)toggleStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80);
+            await Move(toggleStart, new Point(toggleStart.X - 48, toggleStart.Y - 24));
+            Button(0x4); await Task.Delay(200);
+            if (Math.Abs(dock.Left - beforeButtonLeft) < 5 || Math.Abs(dock.Top - beforeButtonTop) < 5
+                || !launcher.IsVisible || Native.GetForegroundWindow() != foreground || launchAttempts != 0)
+                throw new InvalidOperationException("Dock launcher-button drag did not move without toggling panel or stealing foreground.");
+            checks.Add("Injected launcher-button drag moves Dock without toggling panel, stealing focus or launching apps");
+            beforeButtonLeft = dock.Left; beforeButtonTop = dock.Top;
+            toggleStart = ToggleCenter();
+            Native.SetCursorPos((int)toggleStart.X, (int)toggleStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80);
+            await Move(toggleStart, new Point(toggleStart.X + 1, toggleStart.Y + 1));
+            Button(0x4); await Task.Delay(200);
+            if (launcher.IsVisible || !dock.IsVisible || dock.Left != beforeButtonLeft || dock.Top != beforeButtonTop)
+                throw new InvalidOperationException("Dock launcher-button click with slight jitter did not hide panel without moving Dock.");
+            checks.Add("Injected launcher-button click tolerates pointer jitter and hides only panel without moving Dock");
+            toggleStart = ToggleCenter();
+            Native.SetCursorPos((int)toggleStart.X, (int)toggleStart.Y); await Task.Delay(80);
+            Button(0x2); await Task.Delay(80); Button(0x4); await Task.Delay(200);
+            if (!launcher.IsVisible || !dock.IsVisible || launchAttempts != 0)
+                throw new InvalidOperationException("Dock launcher-button second click did not restore panel.");
+            checks.Add("Injected launcher-button second click restores panel after drag without launching apps");
         }
         finally
         {
@@ -231,6 +399,7 @@ internal static class SmokeVerifier
             Native.SetCursorPos(previous.X, previous.Y);
             model.LaunchOverride = _ => { };
             model.RestoreOrder(original);
+            dock.SetScale(dockScale, false); dock.MoveTo(dockLeft, dockTop, false);
         }
     }
 
@@ -266,7 +435,7 @@ internal static class SmokeVerifier
         checks.Add($"{window.Title} {theme}: {sampleCount} corner pixels match hidden background (max RGB delta {maxDifference})");
     }
 
-    private static BitmapSource Capture(Window window, string destination, int padding = 0)
+    internal static BitmapSource Capture(Window window, string destination, int padding = 0)
     {
         nint hwnd = new WindowInteropHelper(window).Handle;
         if (!Native.GetWindowRect(hwnd, out var rect)) throw new InvalidOperationException("Window bounds unavailable.");

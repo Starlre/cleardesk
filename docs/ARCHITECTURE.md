@@ -2,6 +2,41 @@
 
 ## 总体方案
 
+更新日期：2026-10-12。当前代码集中在 `experiments/GlassWindow`，使用 WPF、Win32/Shell COM、Windows Composition 和 JSON。App/Core/Infrastructure 与 SQLite 是正式应用目标，尚未迁移。
+
+## 当前原型实现
+
+| 实现 | 职责 |
+| --- | --- |
+| `App` / `SingleInstance` | 启动组合、同用户同会话单实例、重复启动唤回、显隐和退出 |
+| `MainWindow` / `LauncherViewModel` | 手选入口、搜索分页、排序取消与启动 |
+| `IconPoolWindow` / `IconPoolViewModel` | 独立候选池、搜索多选、确认后添加 |
+| `CatalogService` | 后台 STA 扫描与完整启动描述去重，图标冻结后传给 UI |
+| `DockWindow` | 前 8 个入口、九宫格单击/拖动区分、等比缩放与屏内限制 |
+| `SurfaceWindow` / `ClippedBackdrop` | 非 layered 前景、独立合成模糊层、圆角与位置/显隐/层级同步 |
+| `SettingsWindow` / `AppearanceSettingsStore` | 实时透明度与保存、高级材质与诊断 |
+| `TrayIcon` | 原生托盘菜单、Explorer 重启通知、注册重试与资源清理 |
+
+### 窗口与事件
+
+主面板允许激活，Dock 设置 `WS_EX_NOACTIVATE` 并返回 `MA_NOACTIVATE`。图标池和设置随主面板收起与恢复，所有窗口禁用任务栏按钮。最小化只收起面板及附属窗口，Dock 与其玻璃保持显示；关闭、Alt+F4、非排序状态 Escape 和托盘隐藏命令隐藏全部窗口。
+
+原生最小化的隐藏通过 Dispatcher 延后，恢复先 Show 再设置 Normal，防止保留最小化尺寸。九宫格按下时捕获鼠标，未超过系统拖动阈值时松开作为单击；超过阈值后移动 Dock，释放只保存位置。应用按钮与缩放 Thumb 不参与空白拖动；位置和缩放通过屏幕坐标及起始 DPI 计算。
+
+单实例使用每用户、每会话命名 Mutex 和 EventWaitHandle。已有实例监听显示事件，通过 Dispatcher 恢复窗口；第二进程发送事件并退出，避免固定托盘 GUID 争用。运行脚本发现已有实例时跳过构建，直接恢复已有窗口。
+
+### 当前持久化
+
+| 文件（`artifacts/GlassWindow/`） | 数据 | 保存时机 |
+| --- | --- | --- |
+| `panel-state.json` | 手动确认的原始入口路径与顺序 | 添加、移除或完成排序 |
+| `dock-layout.json` | `Left`、`Top`、`Scale` | 结束拖动或尺寸/位置操作 |
+| `appearance-settings.json` | `Transparency`（0–100） | 停止调整 350 ms、关闭设置或退出 |
+
+显示窗口前读取透明度和 Dock 布局；入口仅恢复手动选择，不自动采用扫描候选。旧 `state.json` 不迁移。配置原子写入，读取失败有默认值，保存失败有反馈。主题与材质仍为会话设置。
+
+## 正式应用目标
+
 采用本地优先的 Windows 桌面架构。WPF 承担界面与输入，Core 定义业务规则和接口，Infrastructure 负责 Windows 与数据适配。
 
 ```mermaid
@@ -23,7 +58,7 @@ flowchart TD
 | ClearDesk.App | MVVM、窗口、视图模型、网格布局、拖动反馈、主题 |
 | ClearDesk.Core | 启动入口模型、搜索规则、候选排序、配置模型与服务接口 |
 | ClearDesk.Infrastructure | Shell COM、原生窗口服务、热键、持久化、缓存、日志 |
-| experiments/GlassWindow | 材质、圆角、阴影与命中区域验证 |
+| experiments/GlassWindow | 当前可运行的入口池、面板、Dock、设置、托盘与验证 |
 | experiments/ShellIntegration | 入口枚举、图标读取、拖入与启动验证 |
 | experiments/DockBehavior | 焦点、显隐、窗口激活与显示环境验证 |
 | ClearDesk.Core.Tests | 有实际意义的排序、搜索和数据规则测试 |

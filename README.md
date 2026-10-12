@@ -1,12 +1,29 @@
 # 澄桌（ClearDesk）
 
-Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然的图标拖拽让位为核心体验。
+澄桌是 Windows 桌面应用启动器与浮动 Dock。通过手动选择应用、搜索和拖动排序整理常用入口，使用半透明玻璃面板快速启动。
+
+## 软件功能
+
+| 功能 | 当前行为 |
+| --- | --- |
+| 空面板与图标池 | 首次启动没有应用图标；点击「添加」，从桌面和开始菜单扫描结果中搜索、多选，确认后加入面板 |
+| 重复入口合并 | 同一启动目标的重复快捷方式合并；参数、工作目录或权限不同的入口保留 |
+| 搜索与分页 | 按名称搜索，每页最多 28 个入口；搜索不会改变保存的顺序 |
+| 整理与移除 | 同页拖动时图标让位；Escape 取消排序；右键调整顺序或移除，源文件保持完整 |
+| 快速启动 | 点击应用、文件或文件夹，通过 Windows Shell 按原快捷方式和文件关联打开 |
+| 浮动 Dock | 显示面板排序的前 8 个入口，九宫格单击切换面板，按住九宫格或空白处可移动 Dock |
+| Dock 大小 | 右侧把手、右键菜单或 Ctrl + 滚轮调整大小，位置和尺寸自动保存 |
+| 玻璃外观 | 半透明背景模糊与四角圆角，设置中实时调整透明度，下次启动沿用上一次的值 |
+| 托盘常驻 | 所有窗口不显示任务栏按钮；最小化只收起面板、保留 Dock；关闭或 Escape 隐藏全部窗口，托盘可恢复或退出 |
+| 重复启动 | 再次启动恢复已有窗口，避免重复创建窗口和托盘图标 |
+
+详细操作和限制见 [使用说明](docs/FEATURES.md)。
 
 ## 当前状态
 
 - 阶段：P1 技术验证，已有可运行的玻璃窗口原型。
 - 首发平台：Windows 11；系统背景材质首先验证 Windows 11 22H2 及以上。
-- 主技术路线：C#、.NET 10 LTS、WPF/MVVM、Win32/Shell COM、SQLite。
+- 当前技术：C#、.NET 10、WPF、Win32/Shell COM、Windows Composition 与 JSON；SQLite 和正式模块拆分属于后续计划。
 - 界面框架决策：WPF 的背景模糊已有本机截图证据；胶囊阴影、命中与多屏验证完成后再最终确认。
 - `ClearDesk.sln` 当前包含 `experiments/GlassWindow`；正式 `src/` 与核心测试项目仍是目录骨架。
 - 本机已准备项目内 .NET SDK 10.0.401；没有更改系统 SDK 安装或全局 PATH。
@@ -19,7 +36,7 @@ Windows 桌面应用启动器与 Dock。以玻璃质感、快速启动和自然�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
-首次克隆且尚未准备 SDK 时，先运行 `scripts/setup-sdk.ps1`。验证版支持本机快捷方式、搜索分页、同页拖动让位、文件路径导入和 Dock 启动；详情见 [实验说明](experiments/GlassWindow/README.md)。
+首次克隆且尚未准备 SDK 时，先运行 `scripts/setup-sdk.ps1`。验证版首次启动为空面板，通过「添加」从图标池搜索、多选并加入应用；支持搜索分页、同页拖动让位、文件路径导入和 Dock 启动。详情见 [实验说明](experiments/GlassWindow/README.md)。
 
 自动检查与截图：
 
@@ -27,16 +44,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify
 ```
 
-验证会短暂显示自有窗口并自动退出。实际运行记录见 [首轮验证结果](docs/evidence/2026-10-11-glass-window.md)。
+验证会短暂显示自有窗口并自动退出。追加 `-InputTest` 可检查实际鼠标排序、Dock 移动和缩放；测试拦截外部启动，并恢复鼠标。最新结果见 [启动与最小化验证](docs/evidence/2026-10-12-startup-and-minimize.md)。
 
-面板使用带圆角裁切的 Windows Composition 背景模糊，启动器为 32 DIP、Dock 为 40 DIP；玻璃背景与窗口轮廓一致，见 [最新验证记录](docs/evidence/2026-10-11-clipped-backdrop.md)。
+面板使用带圆角裁切的 Windows Composition 背景模糊，启动器为 32 DIP、Dock 默认 40 DIP，Dock 缩放时轮廓同步调整；玻璃与窗口边界一致，见 [圆角玻璃验证](docs/evidence/2026-10-11-clipped-backdrop.md)。
 
-![澄桌启动器](docs/evidence/cleardesk-launcher.png)
+![澄桌图标池](docs/evidence/icon-pool-selection.png)
+
+![透明度设置](docs/evidence/transparency-settings.png)
 
 ## 文档入口
 
 | 文档 | 内容 |
 | --- | --- |
+| [软件功能与使用说明](docs/FEATURES.md) | 添加图标、启动、整理、Dock、设置和托盘操作 |
 | [产品范围](docs/PRODUCT.md) | MVP、交互约定与后续能力 |
 | [技术架构](docs/ARCHITECTURE.md) | 模块边界、数据模型与 Windows 集成 |
 | [开发指南](docs/DEVELOPMENT.md) | 环境准备、目录约定、Git 工作流 |
@@ -100,4 +120,4 @@ Git 不追踪空目录，因此用 `.gitkeep` 保留尚未实现的模块。首�
 
 ## 下一步
 
-按 [技术验证](docs/VALIDATION.md) 继续检查胶囊裁切后的阴影、鼠标操作、透明设置降级和多屏 DPI；补全 Shell 启动语义与打包应用验证后，再提取正式应用模块。当前原型不代表完整 MVP 已交付。
+继续检查胶囊阴影、系统透明设置降级、多屏 DPI 与外部 Shell 启动语义，再提取正式应用模块。当前不支持独立 Dock 固定项、跨屏摆放、自动隐藏、开机自启、全局快捷键或打包应用枚举。

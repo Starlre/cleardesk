@@ -26,7 +26,7 @@ public class SurfaceWindow : Window
     protected bool IsDock { get; set; }
     public BackdropMode Material { get; private set; } = BackdropMode.Glass;
     public bool UseCustomContour { get; set; } = true;
-    public double SurfaceRadius => IsDock ? 40 : 32;
+    public virtual double SurfaceRadius => IsDock ? 40 : 32;
     public SurfaceReport? Report { get; private set; }
     public event EventHandler? SurfaceChanged;
 
@@ -48,6 +48,7 @@ public class SurfaceWindow : Window
         LocationChanged += (_, _) => _backdrop?.SyncPosition();
         ContentRendered += (_, _) => UpdateContour();
         IsVisibleChanged += (_, _) => { if (IsVisible) UpdateContour(); else _backdrop?.Hide(); };
+        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) _backdrop?.Hide(); else UpdateContour(); };
         Closed += (_, _) => { _source?.RemoveHook(WindowProc); _backdrop?.Dispose(); };
     }
 
@@ -131,14 +132,18 @@ public class SurfaceWindow : Window
                 IsVisible && WindowState != WindowState.Minimized && Report.FallbackReason is null);
         }
         else Native.SetWindowRgn(hwnd, 0, true);
-        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round };
+        Report = Report with { RegionApplied = applied, Dpi = Native.GetDpiForWindow(hwnd), CornerResult = round, CornerRadius = SurfaceRadius };
     }
 
     private nint WindowProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         if (IsDock && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
         if (message == 0x47) _backdrop?.SyncPosition(); // Keep the backdrop directly behind UI after movement/z-order changes.
-        if (message == 0x5 && wParam == 1) _backdrop?.Hide(); // WM_SIZE / SIZE_MINIMIZED
+        if (message == 0x5) // WM_SIZE: restored bounds settle after the state-change handlers.
+        {
+            if (wParam == 1) _backdrop?.Hide();
+            else Dispatcher.BeginInvoke(UpdateContour);
+        }
         if (message == 0x2E0) Dispatcher.BeginInvoke(UpdateContour); // Rebuild physical contour after WPF applies a DPI change.
         if (message is 0x31E or 0x320 or 0x1A or 0x31A) Dispatcher.BeginInvoke(() =>
         {
@@ -201,6 +206,7 @@ internal static class Native
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll", SetLastError = true)] internal static extern uint SendInput(uint count, Input[] inputs, int size);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool SetForegroundWindow(nint hwnd);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool AllowSetForegroundWindow(uint processId);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool SetWindowPos(nint hwnd, nint insertAfter, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] internal static extern nint SendMessage(nint hwnd, int message, nint wParam, nint lParam);
     [DllImport("user32.dll")] internal static extern nint GetDC(nint hwnd);
