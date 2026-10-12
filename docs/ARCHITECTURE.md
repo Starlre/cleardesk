@@ -18,6 +18,7 @@
 | `TrayIcon` | 原生托盘菜单、Explorer 重启通知、注册重试与资源清理 |
 | `DesktopIconVisibility` | 查询 Explorer 桌面图标视图，通过系统显示命令隐藏/恢复，不删除桌面文件 |
 | `GlassEdge` | WPF 内侧切面明暗渐变，不变换桌面采样，不改变窗口外轮廓 |
+| `DockVisibilityController` | 前台窗口事件驱动显隐，桌面/自身进程恢复，手动隐藏优先，退出时解除监听 |
 
 ### 窗口与事件
 
@@ -26,6 +27,8 @@
 原生最小化的隐藏通过 Dispatcher 延后，恢复先 Show 再设置 Normal，防止保留最小化尺寸。九宫格按下时捕获鼠标，未超过系统拖动阈值时松开作为单击；超过阈值后移动 Dock，释放只保存位置。应用按钮与缩放 Thumb 不参与空白拖动；位置和缩放通过屏幕坐标及起始 DPI 计算。
 
 单实例使用每用户、每会话命名 Mutex 和 EventWaitHandle。已有实例监听显示事件，通过 Dispatcher 恢复窗口；第二进程发送事件并退出，避免固定托盘 GUID 争用。运行脚本发现已有实例时跳过构建，直接恢复已有窗口。
+
+`DockVisibilityController` 通过 `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` 监听前台切换，在 UI Dispatcher 上合并 100 ms 内的过渡事件，无持续轮询。其他进程窗口获得前台时隐藏 Dock 与合成背景；Windows 桌面（Progman/WorkerW）或当前进程的面板、设置、图标池和菜单获得前台时恢复。Explorer 文件夹窗口视为其他应用。任务栏和空句柄暂时保留上次判断；恢复 Dock 沿用非激活窗口样式。手动隐藏将 requested 标志置为 false，前台切换不反转该选择；托盘恢复重新启用。退出时停止定时器并解除 WinEvent hook。
 
 ### 当前持久化
 

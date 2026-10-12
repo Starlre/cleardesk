@@ -52,6 +52,10 @@ Git 提交说明和推送更新备注使用中文，例如：`修复：裁切玻
 
 仅在用户明确要求更新 Git 时提交和推送。功能说明、技术文档和验证证据随对应实现更新；实验本地配置与构建产物不提交。
 
+仅在用户明确要求时重新打包本地 EXE；本轮只更新轻量版 `ClearDesk-Online.exe`，离线版不随功能改动自动更新。
+
+用户明确要求发布 GitHub Release 时，先核对已验证 EXE 的 SHA-256 和检查报告，再用中文提交说明推送源码；发布标签指向该提交，安装包作为 Release 附件上传，不加入源码历史。当前首个版本为 `v0.1.0` 轻量预览版，附件只有 Online EXE、SHA-256 和中文使用说明。版本处于技术验证阶段，Release 标记为预发布；没有用户打包请求时复用已验证产物。
+
 ## 构建与验证
 
 `ClearDesk.sln` 目前包含 `experiments/GlassWindow/ClearDesk.GlassWindow.csproj`。从仓库根目录执行：
@@ -87,6 +91,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1 -Verify -N
 实验结果至少记录：Windows 构建、SDK、硬件/显示器缩放、步骤、预期、实际结果、证据、通过或失败，以及失败后的决策。
 
 桌面显示设置由 `DesktopIconVisibility` 读取和操作 Windows Explorer 图标视图，状态由系统保存，设置打开/激活时读取。`scripts/run.ps1 -Verify -DesktopIconTest` 额外执行实际桌面隐藏与恢复检查，在 `finally` 恢复初始状态。该模式不使用强制杀进程的 60 秒超时，避免在恢复前终止；普通 `-Verify` 只检查设置状态和可访问名称，不改用户桌面。
+
+`DockForegroundVerifier` 在普通验证中临时启用实际前台监听，并启动单独进程的测试窗口，验证进入其他进程隐藏 Dock/玻璃、真实桌面恢复不抢焦点、手动隐藏优先、托盘恢复、设置/图标池归属和监听释放。验证子进程通过 `--dock-focus-probe` 创建隔离窗口，正常结束及异常路径均清理，且设有 25 秒退出上限。主验证的其他阶段不启用自动显隐，以免外部前台变化干扰像素检查。
 
 `GlassEdge` 使用 WPF 几何差集绘制向内衰减的切面高光，外部圆角继续由原裁切控制。背景仍只经过单层 GaussianBlur，不采用 Transform2D 背景采样。启动阶段记录在本地 `startup.log`，不写入版本库。验证结束或异常时先隐藏测试背景与窗口，再清理合成资源，避免深色测试背景继续遮住桌面。
 

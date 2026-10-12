@@ -16,6 +16,7 @@
 | 整理与移除 | 同页拖动时图标让位；Escape 取消排序；右键调整顺序或移除，源文件保持完整 |
 | 快速启动 | 点击应用、文件或文件夹，通过 Windows Shell 按原快捷方式和文件关联打开 |
 | 浮动 Dock | 设置可选固定排序或最近使用，最多 8 个入口；九宫格单击切换面板，按住九宫格或空白处移动 Dock |
+| 前台应用显隐 | 进入其他应用时隐藏 Dock 及玻璃背景；返回桌面或澄桌时恢复，不抢焦点；手动隐藏全部窗口优先 |
 | Dock 大小 | 右侧把手、右键菜单或 Ctrl + 滚轮调整大小，位置和尺寸自动保存 |
 | 玻璃外观 | 四角圆角和内侧切面高光，透明度同时调整底色与模糊，从实色到清透，下次启动沿用上一次的值 |
 | 桌面图标开关 | 设置中隐藏或恢复全部 Windows 桌面图标，保留澄桌面板与 Dock 图标；不删除文件 |
@@ -63,6 +64,8 @@
 
 ## EXE 免安装版
 
+轻量预览版可从 [GitHub Release v0.1.0](https://github.com/Starlre/cleardesk/releases/tag/v0.1.0) 下载：[ClearDesk-Online.exe](https://github.com/Starlre/cleardesk/releases/download/v0.1.0/ClearDesk-Online.exe)。首次启动需要联网下载运行时；已经运行旧版时，请先在托盘选择「退出澄桌」，再启动新版。本次 Release 仅提供轻量版。
+
 在 Windows 11 22H2 及以上 x64 系统中，双击 `artifacts/releases/ClearDesk.exe` 即可使用，无需另装 .NET 10。首次自动展开运行文件到 `%LocalAppData%\ClearDesk\packages\`，个人设置保存在 `%LocalAppData%\ClearDesk\data\`，发布包不包含开发配置。
 
 另提供 `artifacts/releases/ClearDesk-Online.exe` 轻量版，约 9.4 MiB，比完整离线版小 86.5%。它保留澄桌程序及玻璃组件，首次启动从微软官网下载约 72.6 MiB 的 .NET 运行时，显示进度并校验 SHA-512；缓存后可离线使用。无需管理员权限，不修改系统 .NET，个人设置与离线版共用。这里减少的是分发文件体积，运行时仍需要本地磁盘空间。
@@ -74,7 +77,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-online.ps1
 ```
 
-输出包含单文件 EXE、SHA-256 校验文件；具体打包方式见 [开发指南](docs/DEVELOPMENT.md)，本机验证见 [离线版打包记录](docs/evidence/2026-10-12-portable-exe.md) 和 [轻量版验证](docs/evidence/2026-10-12-online-exe.md)。发布产物保存在本地，不进入 Git。
+输出包含单文件 EXE、SHA-256 校验文件；具体打包方式见 [开发指南](docs/DEVELOPMENT.md)，本机验证见 [离线版打包记录](docs/evidence/2026-10-12-portable-exe.md) 和 [轻量版验证](docs/evidence/2026-10-12-online-exe.md)。EXE 不进入 Git 源码历史；用户要求发布时作为 GitHub Release 附件提供。
 
 ## 启动原型
 
@@ -165,4 +168,4 @@ Git 不追踪空目录，因此用 `.gitkeep` 保留尚未实现的模块。首�
 
 ## 下一步
 
-继续检查胶囊阴影、系统透明设置降级、多屏 DPI 与外部 Shell 启动语义，再提取正式应用模块。当前不支持独立 Dock 固定项、跨屏摆放、自动隐藏、开机自启、全局快捷键或打包应用枚举。
+继续检查胶囊阴影、系统透明设置降级、多屏 DPI 与外部 Shell 启动语义，再提取正式应用模块。当前不支持独立 Dock 固定项、跨屏摆放、靠边自动隐藏、开机自启、全局快捷键或打包应用枚举。

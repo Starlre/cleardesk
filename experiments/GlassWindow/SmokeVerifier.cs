@@ -229,6 +229,7 @@ internal static class SmokeVerifier
         await DockOrderingVerifier.RunAsync(launcher, model, output, Check);
         await DesktopIconVerifier.RunAsync(launcher, dock, model, output, Check, desktopIconTest);
         if (inputTest) await VerifyPointerDragAsync(launcher, dock, model, checks);
+        await DockForegroundVerifier.RunAsync(launcher, dock, output, Check);
 
         model.Status = $"{model.Entries.Count} 个入口";
         launcher.Activate();

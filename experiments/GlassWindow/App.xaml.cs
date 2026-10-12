@@ -16,12 +16,18 @@ public partial class App : Application
     private bool _appearanceDirty;
     private nint _previousForeground;
     private Window? _verificationBackdrop;
+    internal DockVisibilityController? DockVisibility { get; private set; }
     internal TrayIcon? Tray { get; private set; }
     internal bool IsExiting { get; private set; }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--dock-focus-probe"))
+        {
+            DockForegroundVerifier.ShowProbe(e.Args);
+            return;
+        }
         int probeIndex = Array.IndexOf(e.Args, "--instance-probe");
         if (probeIndex >= 0 && probeIndex + 1 < e.Args.Length)
         {
@@ -84,6 +90,7 @@ public partial class App : Application
                     new System.Windows.Interop.WindowInteropHelper(launcher).Handle, 0, 0, 0, 0, 0x13);
             await viewModel.InitializeAsync(await CatalogService.LoadAsync(_lifetime.Token), _lifetime.Token);
             Stage("Ready");
+            if (!verify) DockVisibility = new DockVisibilityController(Dock);
             if (!Tray.IsRegistered) viewModel.Status = "系统托盘暂时不可用，正在重试；请保留此窗口。";
             if (verify)
             {
@@ -109,6 +116,7 @@ public partial class App : Application
         MainWindow.WindowState = WindowState.Normal;
         if (MainWindow is MainWindow { IconPool: { IsVisible: true } pool }) pool.Activate();
         else MainWindow.Activate();
+        DockVisibility?.SetRequested(true);
     }
     internal void HideToTray()
     {
@@ -119,12 +127,14 @@ public partial class App : Application
                 model.Status = "系统托盘暂时不可用，正在重试；请保留此窗口。";
             return;
         }
+        DockVisibility?.SetRequested(false);
         if (MainWindow is MainWindow launcher) launcher.HidePanel();
         Dock.Hide();
     }
     private void ExitApplication(int code = 0)
     {
         IsExiting = true;
+        DockVisibility?.Dispose(); DockVisibility = null;
         // Remove verification overlays before releasing graphics resources, even after an exception.
         _verificationBackdrop?.Hide();
         foreach (var window in Windows.Cast<Window>().ToArray()) window.Hide();
@@ -133,11 +143,14 @@ public partial class App : Application
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e) { IsExiting = true; base.OnSessionEnding(e); }
     protected override void OnExit(ExitEventArgs e)
     {
+        DockVisibility?.Dispose(); DockVisibility = null;
         SaveAppearance();
         Tray?.Dispose(); Tray = null;
         _instance?.Dispose(); _instance = null;
         _lifetime.Cancel(); _lifetime.Dispose(); base.OnExit(e);
     }
+    internal void StartDockVisibility() => DockVisibility ??= new DockVisibilityController(Dock);
+    internal void StopDockVisibility() { DockVisibility?.Dispose(); DockVisibility = null; }
     private void RestoreForeground()
     {
         if (_previousForeground == 0) return;
